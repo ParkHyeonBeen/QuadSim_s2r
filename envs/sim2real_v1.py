@@ -69,7 +69,7 @@ class Sim2RealEnv(QuadRotorAsset):
         u_hat = np.sqrt(f_hat)  # rotor angular velocity
 
         # motor lag
-        u_hat = 4*self.sample_time/self.settling_time*(u_hat - self.u_hat) + self.u_hat
+        u_hat = self.lag_ratio*(u_hat - self.u_hat) + self.u_hat
         self.u_hat = u_hat
 
         # motor noise
