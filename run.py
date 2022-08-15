@@ -24,13 +24,14 @@ parser.add_argument("--gpu", default=True, type=bool, help="If use gpu, True")
 parser.add_argument("--device-idx", default=0, type=int, help="a index about gpu device")
 
 # Main controller
-parser.add_argument("--train", default=False, type=bool, help="If True, run_train")
+parser.add_argument("--train", default=True, type=bool, help="If True, run_train")
 parser.add_argument("--develop-mode", "-dm", default='imn', type=str,
                     help="none   : only policy network,"
                          "mrrl   : model reference rl,"
                          "mn_mrrl: model reference rl with model network,"
                          "imn    : inverse model network")
 parser.add_argument("--env-name", default='QuadRotor-v0', type=str, help="If True, run_train")
+parser.add_argument("--net-type", default='dnn', type=str, help="dnn, bnn")
 
 # For test
 parser.add_argument("--test_eps", default=50, type=int, help="The number of test episode using trained policy.")
@@ -40,6 +41,8 @@ parser.add_argument("--result_name", default="0730_HD128_IA120_RR0.1_BS_7.6e7", 
 # ModelNet
 parser.add_argument("--model_lr", default=3e-4, type=float, help="Learning rate for model network update.")
 parser.add_argument("--inv_model_lr", default=3e-4, type=float, help="Learning rate for inverse model network update.")
+parser.add_argument('--model-kl-weight', default=0.00001, type=float)
+parser.add_argument('--inv-model-kl-weight', default=0.00001, type=float)
 
 # SAC
 parser.add_argument("--name", default="mSAC", type=str, help="Trained model is saved with this name.")
@@ -80,7 +83,7 @@ parser.add_argument("--HER", default=False, type=bool, help="If True, replay buf
 
 # for environment
 parser.add_argument("--init_max_pbox", default=3., type=float, help="max initial position near goal")
-parser.add_argument("--init_max_ang", default=45, type=float, help="max initial degree angle for roll and pitch")
+parser.add_argument("--init_max_ang", default=90, type=float, help="max initial degree angle for roll and pitch")
 parser.add_argument("--init_max_vel", default=1., type=float, help="max initial velocity")
 parser.add_argument("--init_max_ang_vel", default=2.*np.pi, type=float, help="max initial angular velocity")
 parser.add_argument("--thrust_noise_sigma", default=0.05, type=float, help="motor noise scale")
@@ -92,6 +95,8 @@ parser.add_argument("--tc", default=0.060, type=float, help="time constant betwe
 parser.add_argument("--alpha", default=2.5, type=float, help="disturbance")
 parser.add_argument("--delta", default=0.24, type=float, help="disturbance")
 parser.add_argument("--sigma", default=1000., type=float, help="disturbance")
+
+
 
 args = parser.parse_args()
 
@@ -125,13 +130,13 @@ if __name__ == '__main__':
 
     # Training
     if args.train:
-
         # share the global parameters in multiprocessing
         sac_trainer.soft_q_net1.share_memory()
         sac_trainer.soft_q_net2.share_memory()
         sac_trainer.target_soft_q_net1.share_memory()
         sac_trainer.target_soft_q_net2.share_memory()
         sac_trainer.policy_net.share_memory()
+        sac_trainer.inv_model_net.share_memory()
         sac_trainer.log_alpha.share_memory_()  # variable
         sac_trainer.worker_step.share_memory_()
         sac_trainer.update_step.share_memory_()
@@ -139,6 +144,7 @@ if __name__ == '__main__':
         share_parameters(sac_trainer.soft_q_optimizer)
         share_parameters(sac_trainer.policy_optimizer)
         share_parameters(sac_trainer.alpha_optimizer)
+        share_parameters(sac_trainer.imn_optimizer)
 
         rewards_queue = mp.Queue()  # used for get rewards from all processes and plot the curve
 
@@ -166,7 +172,7 @@ if __name__ == '__main__':
             else:
                 break
             if len(rewards) > 0:
-                plot_fig(rewards, log_dir['train'])
+                plot_fig(rewards, log_dir['train']+"/reward.png")
 
         [p.join() for p in processes]  # finished at the same time
 

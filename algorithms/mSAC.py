@@ -19,6 +19,7 @@ import torch
 import time
 from tool.logger import *
 from tool.utils import *
+from tool.utils_model import *
 
 eval_data = DataManager()
 
@@ -39,6 +40,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
     eps = 0
     eval_freq = args.eval_frequency
     best_score = 0.
+    best_error = 100.
 
     while sac_trainer.worker_step < args.max_interaction:
         # Episode start
@@ -97,7 +99,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
         sac_trainer.worker_step += torch.tensor([step + 1])
         sac_trainer.eps += torch.tensor([1])
 
-        s = np.int(time.time() - startTime)
+        s = int(time.time() - startTime)
         m, s = divmod(s, 60)
         h, m = divmod(m, 60)
         logging.info(
@@ -128,9 +130,13 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                                                     state["angular_velocity_error_obs"]])
                     action = sac_trainer.policy_net.get_action(network_state, deterministic=args.train)
                     next_state, reward, done, success = env.step(action)
-                    action_hat = sac_trainer.inv_model_net(state, next_state)
+                    next_network_state = np.concatenate([next_state["position_error_obs"],
+                                                         next_state["velocity_error_obs"],
+                                                         next_state["rotation_obs"],
+                                                         next_state["angular_velocity_error_obs"]])
+                    action_hat = sac_trainer.inv_model_net(network_state, next_network_state).detach().cpu().numpy()
                     eval_data.put_data(np.sqrt(np.mean((action_hat - action)**2)))
-                    env.render()
+                    # env.render()
 
                     state = next_state
                     episode_reward += reward
@@ -143,9 +149,13 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                 episode_rewards.append(episode_reward)
             avg_reward = np.mean(episode_rewards)
             best_score_tmp = save_policy(sac_trainer.policy_net, best_score, avg_reward, success_cnt, model_path['policy'])
+            best_error_tmp = save_model(sac_trainer.inv_model_net, best_error, eval_data.mean_data(), model_path[args.net_type])
             if best_score_tmp is not None:
                 best_score = best_score_tmp
+            if best_error_tmp is not None:
+                best_error = best_error_tmp
 
+            eval_data.plot_fig(model_path['train']+"/model_error.png")
             rewards = [avg_reward, sac_trainer.worker_step.tolist()[0]]
             rewards_queue.put(rewards)
             logging.error(

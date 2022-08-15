@@ -16,7 +16,7 @@ class Sim2RealEnv(QuadRotorAsset):
 
         self.controller = PIDController(args, sample_time)
 
-        self.env_render = gym.make("QuadRate-v0")
+        # self.env_render = gym.make("QuadRate-v0")
         self._reset_noise_scale = reset_noise_scale
         self.suc_cnt = 0
         self.drop_cnt = 0
@@ -80,7 +80,7 @@ class Sim2RealEnv(QuadRotorAsset):
         fmax = self.kt * (14617.16784233) ** 2  # max rpm = 14617.16784233
         f *= fmax
 
-        f = self.controller.get_force(self._get_obs())
+        # f = self.controller.get_force(self._get_obs())
 
         self.do_simulation(f)
         new_obs, done = self._get_obs(mem_reset=False)

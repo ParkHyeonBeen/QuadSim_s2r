@@ -11,7 +11,7 @@ def _format(device, *inp):
         if not isinstance(d, torch.Tensor):
             d = torch.tensor(d, device=device, dtype=torch.float32)
             d = d.unsqueeze(0)
-            output.append(d)
+        output.append(d)
     return output
 
 class ModelNetwork(nn.Module):
@@ -28,12 +28,12 @@ class ModelNetwork(nn.Module):
         self.action_dim = action_dim
         self.state_dim = state_dim
         self.hidden_dim = hidden_dim
-        self.n_history = self.args.n_histoty
+        self.n_history = self.args.n_history
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.batch_size = args.batch_size
 
-        if self.net_type == "DNN":
+        if self.net_type == "dnn":
             self.state_net = nn.Sequential(
                 nn.Linear(self.state_dim*self.n_history, int(self.hidden_dim/2)),
                 nn.Dropout(0.15),
@@ -51,7 +51,7 @@ class ModelNetwork(nn.Module):
                 nn.Linear(self.hidden_dim, self.state_dim)
             )
 
-        if self.net_type == "BNN":
+        if self.net_type == "bnn":
             self.state_net = nn.Sequential(
                 bnn.BayesLinear(prior_mu=0, prior_sigma=0.1,
                                 in_features=self.state_dim * self.n_history, out_features=int(self.hidden_dim / 2)),
@@ -107,7 +107,7 @@ class PidNetwork(nn.Module):
         self.action_dim = action_dim
         self.state_dim = state_dim
         self.hidden_dim = hidden_dim
-        self.n_history = self.args.n_histoty
+        self.n_history = self.args.n_history
         if args.gpu:
             self.device = torch.device("cuda:" + str(args.device_idx) if torch.cuda.is_available() else "cpu")
         else:
@@ -207,7 +207,7 @@ class InverseModelNetwork(nn.Module):
         self.action_dim = action_dim
         self.state_dim = state_dim
         self.hidden_dim = hidden_dim
-        self.n_history = self.args.n_histoty
+        self.n_history = self.args.n_history
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -222,9 +222,9 @@ class InverseModelNetwork(nn.Module):
         self.do1 = nn.Dropout(0.15)
 
         # construct the structure of model network
-        if self.net_type == "DNN":
+        if self.net_type == "dnn":
             self.state_net = nn.Sequential(
-                nn.Linear(self.state_dim*self.n_history, int(self.hidden_dim/2)),
+                nn.Linear(self.state_dim, int(self.hidden_dim/2)),
                 nn.Dropout(0.15),
                 nn.ReLU()
             )
@@ -240,7 +240,7 @@ class InverseModelNetwork(nn.Module):
                 nn.Linear(self.hidden_dim, self.action_dim)
             )
 
-        if self.net_type == "BNN":
+        if self.net_type == "bnn":
             self.is_freeze = False
 
             self.state_net = nn.Sequential(
@@ -267,14 +267,14 @@ class InverseModelNetwork(nn.Module):
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.kl_loss = bnn.BKLLoss(reduction='mean', last_layer_only=False)
-        self.kl_weight = args.invmodel_kl_weight
+        self.kl_weight = args.inv_model_kl_weight
 
         self.apply(weight_init)
 
     def forward(self, state, next_state, train=False):
 
-        # BNN freezing part to evaluate the model with mean value
-        if self.net_type == 'BNN':
+        # bnn freezing part to evaluate the model with mean value
+        if self.net_type == 'bnn':
             if train is False and self.is_freeze is False:
                 # eps_zero fcn is a customized fcn to make eps weight and bias be zero.
                 # so, you should customize utils.__init__.py , freeze_model.py, and linear.py
@@ -320,7 +320,7 @@ class InverseModelNetwork(nn.Module):
     #     kl = self.kl_loss(self.imn)
     #
     #     # After a KL-loss start step, training related to KL loss is started
-    #     if self.net_type == 'BNN':
+    #     if self.net_type == 'bnn':
     #         if self.train_cnt < self.KL_train_start:
     #             cost = mse + self.l1_loss(z, a)
     #         else:

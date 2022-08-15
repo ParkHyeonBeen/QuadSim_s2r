@@ -1,12 +1,12 @@
-from utils import *
+from tool.utils import *
 
-def save_model(network, fname : str, path : str):
-    if "dnn" in fname:
-        torch.save(network.state_dict(), path + fname)
-    elif "bnn" in fname:
-        torch.save(network.state_dict(), path + fname)
-    else:
-        torch.save(network.state_dict(), path + fname)
+# def save_model(network, fname : str, path : str):
+#     if "dnn" in fname:
+#         torch.save(network.state_dict(), path + fname)
+#     elif "bnn" in fname:
+#         torch.save(network.state_dict(), path + fname)
+#     else:
+#         torch.save(network.state_dict(), path + fname)
 
 def create_models(state_dim, action_dim, algorithm, args, net_type="dnn,bnn"):
 
@@ -54,12 +54,12 @@ def train_alls(training_step, models):
 
     return costs, mses, kls
 
-def save_models(loss, eval_loss, path, algorithm, fname = "dnn"):
-        if loss > eval_loss:
-            save_model(algorithm.dynamics, fname + "_better", path)
-            return eval_loss
-        else:
-            save_model(algorithm.dynamics, fname + "_current", path)
+def save_model(network, loss_best, loss_now, path):
+    if loss_best > loss_now:
+        torch.save(network.state_dict(), path + "/better_" + path[-3:])
+        return loss_now
+    else:
+        torch.save(network.state_dict(), path + "/current_" + path[-3:])
 
 def load_models(args_tester, model):
 

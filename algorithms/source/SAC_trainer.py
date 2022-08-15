@@ -186,9 +186,9 @@ class ValueNetwork(nn.Module):
         # torch.nn.init.xavier_uniform(self.linear2.weight)
         # torch.nn.init.xavier_uniform(self.linear3.weight)
 
-        torch.nn.init.kaiming_uniform(self.linear1.weight, nonlinearity='relu')
-        torch.nn.init.kaiming_uniform(self.linear2.weight, nonlinearity='relu')
-        torch.nn.init.kaiming_uniform(self.linear3.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.linear1.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.linear2.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.linear3.weight, nonlinearity='relu')
 
 
     def forward(self, state, detach_encoder=False):
@@ -213,9 +213,9 @@ class SoftQNetwork(nn.Module):
         # torch.nn.init.xavier_uniform(self.linear2.weight)
         # torch.nn.init.xavier_uniform(self.linear3.weight)
 
-        torch.nn.init.kaiming_uniform(self.linear1.weight, nonlinearity='relu')
-        torch.nn.init.kaiming_uniform(self.linear2.weight, nonlinearity='relu')
-        torch.nn.init.kaiming_uniform(self.linear3.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.linear1.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.linear2.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.linear3.weight, nonlinearity='relu')
 
     def forward(self, state, action, detach_encoder=False):
         x = torch.cat([state, action], 1)  # the dim 0 is number of samples
@@ -254,10 +254,10 @@ class PolicyNetwork(nn.Module):
         # torch.nn.init.xavier_uniform(self.mean_linear.weight)
         # torch.nn.init.xavier_uniform(self.log_std_linear.weight)
 
-        torch.nn.init.kaiming_uniform(self.linear1.weight, nonlinearity='relu')
-        torch.nn.init.kaiming_uniform(self.linear2.weight, nonlinearity='relu')
-        torch.nn.init.kaiming_uniform(self.mean_linear.weight, nonlinearity='relu')
-        torch.nn.init.kaiming_uniform(self.log_std_linear.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.linear1.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.linear2.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.mean_linear.weight, nonlinearity='relu')
+        torch.nn.init.kaiming_uniform_(self.log_std_linear.weight, nonlinearity='relu')
 
         self.action_range = action_range
         self.num_actions = num_actions
