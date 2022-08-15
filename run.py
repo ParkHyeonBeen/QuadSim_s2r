@@ -80,7 +80,6 @@ parser.add_argument("--HER", default=False, type=bool, help="If True, replay buf
 
 # for environment
 parser.add_argument("--init_max_pbox", default=3., type=float, help="max initial position near goal")
-parser.add_argument("--init_max_pbox", default=3., type=float, help="max initial position near goal")
 parser.add_argument("--init_max_ang", default=45, type=float, help="max initial degree angle for roll and pitch")
 parser.add_argument("--init_max_vel", default=1., type=float, help="max initial velocity")
 parser.add_argument("--init_max_ang_vel", default=2.*np.pi, type=float, help="max initial angular velocity")
