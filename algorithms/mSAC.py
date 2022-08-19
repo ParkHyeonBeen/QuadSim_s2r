@@ -126,6 +126,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                     episode_reward = 0
                     episode_model_error = []
                     state = env.reset()
+                    action_before = None
                     for step in range(args.episode_length):
                         network_state = np.concatenate([state["position_error_obs"],
                                                         state["velocity_error_obs"],
@@ -141,7 +142,10 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                         if sac_trainer.worker_step.tolist()[0] > args.max_interaction/100:
                             action_hat = sac_trainer.inv_model_net(network_state, next_network_state).detach().cpu().numpy()
                             # eval_data.put_data(np.sqrt(np.mean((action_hat - action)**2)))
+                            if action_before is not None:
+                                action_hat = action_before + 0.5*(action_hat - action_before)
                             episode_model_error.append(np.sqrt(np.mean((action_hat - action)**2)))
+                            action_before = action_hat
                         # env.render()
 
                         state = next_state

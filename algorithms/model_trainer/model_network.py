@@ -269,8 +269,6 @@ class InverseModelNetwork(nn.Module):
         self.kl_loss = bnn.BKLLoss(reduction='mean', last_layer_only=False)
         self.kl_weight = args.inv_model_kl_weight
 
-        self.action = torch.zeros(self.action_dim, device=self.device, dtype=torch.float32)
-
         self.apply(weight_init)
 
     def forward(self, state, next_state, train=False):
@@ -296,9 +294,6 @@ class InverseModelNetwork(nn.Module):
 
         # Testing data has 1 dim date(vector), so we should remove dim=1
         action = torch.tanh(self.action_net(torch.cat([state, next_state], dim=-1)))
-        action = self.action + 0.5*(action - self.action)
-        self.action = action
-
         return action
 
     def trains(self):
