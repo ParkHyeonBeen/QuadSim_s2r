@@ -61,7 +61,7 @@ parser.add_argument("--dense_reward", default=True, type=bool, help="The use of 
 parser.add_argument("--AUTO_ENTROPY", default=True, type=bool, help="Training entrophy.")
 parser.add_argument("--hidden_dim", default=128, type=int, help="Network hidden state dimension.")
 
-parser.add_argument("--eval_frequency", default=10000, type=int, help="Evaluation frequency in the aspect of the number of agent local steps.")
+parser.add_argument("--eval_frequency", default=100000, type=int, help="Evaluation frequency in the aspect of the number of agent local steps.")
 parser.add_argument("--num_eval", default=10, type=int, help="The number of evaluations at once.")
 
 parser.add_argument("--buffer_size", default=3e6, type=int, help="Buffer size.")
