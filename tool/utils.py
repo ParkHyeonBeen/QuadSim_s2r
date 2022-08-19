@@ -121,6 +121,12 @@ def plot_variance_fig(mean_val, std_val, path):
     # plt.show()
     plt.clf()
 
+def get_mean_std_at_different_dim(data):
+
+    mean_list = []
+    std_list = []
+
+
 def eval_plot(step, pos, vel, rpy, angvel, policy, force):
     plt.clf()
     clear_output(True)

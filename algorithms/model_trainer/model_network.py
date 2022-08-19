@@ -269,7 +269,7 @@ class InverseModelNetwork(nn.Module):
         self.kl_loss = bnn.BKLLoss(reduction='mean', last_layer_only=False)
         self.kl_weight = args.inv_model_kl_weight
 
-        self.action = torch.zeros(self.action_dim)
+        self.action = torch.zeros(self.action_dim, device=self.device, dtype=torch.float32)
 
         self.apply(weight_init)
 

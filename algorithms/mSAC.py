@@ -120,10 +120,11 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
             try:
                 eval_freq += args.eval_frequency
                 episode_rewards = []
-                episode_model_error = []
+                episodes_model_error = []
                 success_cnt = 0
                 for eval_step in range(args.num_eval):
                     episode_reward = 0
+                    episode_model_error = []
                     state = env.reset()
                     for step in range(args.episode_length):
                         network_state = np.concatenate([state["position_error_obs"],
@@ -152,19 +153,23 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                     if episode_reward > 300:
                         success_cnt += 1
                     episode_rewards.append(episode_reward)
+                    episodes_model_error.append(episode_model_error)
                 avg_reward = np.mean(episode_rewards)
                 best_score_tmp = save_policy(sac_trainer.policy_net, best_score, avg_reward, success_cnt, model_path['policy'])
                 if best_score_tmp is not None:
                     best_score = best_score_tmp
 
                 if sac_trainer.worker_step.tolist()[0] > args.max_interaction / 100:
-                    eval_data.put_data(np.mean(episode_model_error))
-                    best_error_tmp = save_model(sac_trainer.inv_model_net, best_error, eval_data.mean_data(),
+                    eval_error = np.mean([np.mean(episode_errors) for episode_errors in episodes_model_error], keepdims=True)
+                    eval_data.put_data(eval_error)
+                    best_error_tmp = save_model(sac_trainer.inv_model_net, best_error, eval_error[0],
                                                 model_path[args.net_type])
                     if best_error_tmp is not None:
                         best_error = best_error_tmp
                     eval_data.plot_fig(model_path['train'] + "/model_error.png")
-
+                    # if len(eval_data.data) > 1:
+                    #     plot_variance_fig(np.mean(episodes_model_error, axis=0), np.std(episodes_model_error, axis=0),
+                    #                       model_path['train'] + "/episode_model_error.png")
                 rewards = [avg_reward, sac_trainer.worker_step.tolist()[0]]
                 rewards_queue.put(rewards)
                 logging.error(
