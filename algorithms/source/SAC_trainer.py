@@ -70,7 +70,7 @@ class SAC_Trainer():
             self.imn_optimizer = optim.Adam(self.inv_model_net.parameters(), lr=args.inv_model_lr)
             self.inv_model_net.trains()
             self.imn_criterion = nn.MSELoss()
-            self.action = None
+            self.action_before = None
 
     def train(self, training=True):
         self.training = training
@@ -147,13 +147,13 @@ class SAC_Trainer():
         if args.develop_mode == "imn" and worker_step > args.max_interaction/100:
             self.inv_model_net.trains()
             action_hat = self.inv_model_net(network_state, next_network_state)
-            if self.action is not None:
-                action_hat = self.action + 0.5 * (action_hat - self.action)
+            if self.action_before is not None:
+                action_hat = self.action_before + 0.5 * (action_hat - self.action_before)
             model_loss = F.smooth_l1_loss(action, action_hat).mean()
             self.imn_optimizer.zero_grad()
             model_loss.backward()
             self.imn_optimizer.step()
-            self.action = action_hat
+            self.action_before = action_hat
 
         # Training alpha wrt entropy
         # alpha = 0.0  # trade-off between exploration (max entropy) and exploitation (max Q)
