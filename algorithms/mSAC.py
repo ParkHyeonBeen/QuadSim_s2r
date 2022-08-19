@@ -34,7 +34,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
     # Configure environments to train
     DETERMINISTIC = not args.train
 
-    env = Sim2RealEnv(args=args, sample_time=args.sampling_time)
+    env = Sim2RealEnv(args=args)
 
     # training loop
     eps = 0
@@ -57,7 +57,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                 action = sac_trainer.policy_net.get_action(network_state, deterministic=DETERMINISTIC)
             else:
                 action = sac_trainer.policy_net.random_action()
-            next_state, reward, done, success = env.step(action)
+            next_state, reward, done, success, _ = env.step(action)
 
             if step == 0:
                 for key in state.keys():
@@ -80,7 +80,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                 if id < args.num_update_worker:
                     for i in range(args.update_iter):
                         try:
-                            _ = sac_trainer.update(args, target_entropy=-1.*env.action_dim)
+                            _ = sac_trainer.update(args, sac_trainer.worker_step.tolist()[0], target_entropy=-1.*env.action_dim)
                             sac_trainer.update_step += torch.tensor([1])
                         except:
                             pass
@@ -117,51 +117,62 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
         # Evaluation while training
         if id == 0 and sac_trainer.worker_step.tolist()[0] > eval_freq:
             print('--------------Evaluation start--------------')
-            eval_freq += args.eval_frequency
-            episode_rewards = []
-            success_cnt = 0
-            for eval_step in range(args.num_eval):
-                episode_reward = 0
-                state = env.reset()
-                for step in range(args.episode_length):
-                    network_state = np.concatenate([state["position_error_obs"],
-                                                    state["velocity_error_obs"],
-                                                    state["rotation_obs"],
-                                                    state["angular_velocity_error_obs"]])
-                    action = sac_trainer.policy_net.get_action(network_state, deterministic=args.train)
-                    next_state, reward, done, success = env.step(action)
-                    next_network_state = np.concatenate([next_state["position_error_obs"],
-                                                         next_state["velocity_error_obs"],
-                                                         next_state["rotation_obs"],
-                                                         next_state["angular_velocity_error_obs"]])
-                    action_hat = sac_trainer.inv_model_net(network_state, next_network_state).detach().cpu().numpy()
-                    eval_data.put_data(np.sqrt(np.mean((action_hat - action)**2)))
-                    # env.render()
+            try:
+                eval_freq += args.eval_frequency
+                episode_rewards = []
+                episode_model_error = []
+                success_cnt = 0
+                for eval_step in range(args.num_eval):
+                    episode_reward = 0
+                    state = env.reset()
+                    for step in range(args.episode_length):
+                        network_state = np.concatenate([state["position_error_obs"],
+                                                        state["velocity_error_obs"],
+                                                        state["rotation_obs"],
+                                                        state["angular_velocity_error_obs"]])
+                        action = sac_trainer.policy_net.get_action(network_state, deterministic=args.train)
+                        next_state, reward, done, success, _ = env.step(action)
+                        next_network_state = np.concatenate([next_state["position_error_obs"],
+                                                             next_state["velocity_error_obs"],
+                                                             next_state["rotation_obs"],
+                                                             next_state["angular_velocity_error_obs"]])
+                        sac_trainer.inv_model_net.evals()
+                        if sac_trainer.worker_step.tolist()[0] > args.max_interaction/100:
+                            action_hat = sac_trainer.inv_model_net(network_state, next_network_state).detach().cpu().numpy()
+                            # eval_data.put_data(np.sqrt(np.mean((action_hat - action)**2)))
+                            episode_model_error.append(np.sqrt(np.mean((action_hat - action)**2)))
+                        # env.render()
 
-                    state = next_state
-                    episode_reward += reward
+                        state = next_state
+                        episode_reward += reward
 
-                    if done or success:
-                        break
+                        if done or success:
+                            break
 
-                if episode_reward > 300:
-                    success_cnt += 1
-                episode_rewards.append(episode_reward)
-            avg_reward = np.mean(episode_rewards)
-            best_score_tmp = save_policy(sac_trainer.policy_net, best_score, avg_reward, success_cnt, model_path['policy'])
-            best_error_tmp = save_model(sac_trainer.inv_model_net, best_error, eval_data.mean_data(), model_path[args.net_type])
-            if best_score_tmp is not None:
-                best_score = best_score_tmp
-            if best_error_tmp is not None:
-                best_error = best_error_tmp
+                    if episode_reward > 300:
+                        success_cnt += 1
+                    episode_rewards.append(episode_reward)
+                avg_reward = np.mean(episode_rewards)
+                best_score_tmp = save_policy(sac_trainer.policy_net, best_score, avg_reward, success_cnt, model_path['policy'])
+                if best_score_tmp is not None:
+                    best_score = best_score_tmp
 
-            eval_data.plot_fig(model_path['train']+"/model_error.png")
-            rewards = [avg_reward, sac_trainer.worker_step.tolist()[0]]
-            rewards_queue.put(rewards)
-            logging.error(
-                'Episode Reward: {1:.2f} | Success cnt: {4} | Local Step: {3} | Global Episode: {0} | Global Worker Step: {2}'
-                .format(sac_trainer.eps.tolist()[0], avg_reward, sac_trainer.worker_step.tolist()[0],
-                        step + 1, success_cnt))
+                if sac_trainer.worker_step.tolist()[0] > args.max_interaction / 100:
+                    eval_data.put_data(np.mean(episode_model_error))
+                    best_error_tmp = save_model(sac_trainer.inv_model_net, best_error, eval_data.mean_data(),
+                                                model_path[args.net_type])
+                    if best_error_tmp is not None:
+                        best_error = best_error_tmp
+                    eval_data.plot_fig(model_path['train'] + "/model_error.png")
+
+                rewards = [avg_reward, sac_trainer.worker_step.tolist()[0]]
+                rewards_queue.put(rewards)
+                logging.error(
+                    'Episode Reward: {1:.2f} | Success cnt: {4} | Local Step: {3} | Global Episode: {0} | Global Worker Step: {2}'
+                    .format(sac_trainer.eps.tolist()[0], avg_reward, sac_trainer.worker_step.tolist()[0],
+                            step + 1, success_cnt))
+            except:
+                logging.error(traceback.format_exc())
 
     # sac_trainer.save_model(model_path)
     rewards_queue.put(None)

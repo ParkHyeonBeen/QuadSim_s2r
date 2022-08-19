@@ -86,7 +86,7 @@ class SAC_Trainer():
     def alpha(self):
         return self.log_alpha.exp()
 
-    def update(self, args, target_entropy=-2):
+    def update(self, args, worker_step, target_entropy=-2):
 
         batch_size = args.batch_size
         reward_scale = args.reward_scale
@@ -143,9 +143,10 @@ class SAC_Trainer():
         # print('policy loss: ', policy_loss )
 
         # Training model network
-        if args.develop_mode == "imn":
+        if args.develop_mode == "imn" and worker_step > args.max_interaction/100:
+            self.inv_model_net.trains()
             action_hat = self.inv_model_net(network_state, next_network_state)
-            model_loss = self.imn_criterion(action, action_hat).mean()
+            model_loss = F.smooth_l1_loss(action, action_hat).mean()
             self.imn_optimizer.zero_grad()
             model_loss.backward()
             self.imn_optimizer.step()

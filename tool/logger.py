@@ -2,6 +2,7 @@ import os, time, logging, json
 from logging import Filter
 from logging.handlers import QueueHandler, QueueListener
 import logging.config
+import logging, traceback
 
 import torch
 from torch.multiprocessing import Queue
@@ -36,6 +37,30 @@ def create_log_directories(root, env_name):
     for key in directories.keys():
         if not os.path.isdir(directories[key]):
             os.mkdir(directories[key])
+
+    return directories
+
+
+def load_log_directories(fname):
+
+    directories = {}
+
+    directories['base'] = "./results/" + fname
+
+    # For logs of testing and training
+    directories['log'] = directories['base']+"/log"
+    directories['train'] = directories['log']+"/train"
+    directories['test'] = directories['log']+"/test"
+
+    #  For saving the buffer
+    directories['buffer'] = directories['base']+"/buffer"
+
+    # For saving networks : policy, model
+    directories['network'] = directories['base']+"/network"
+    directories['policy'] = directories['network']+"/policy"
+    directories['model'] = directories['network']+"/model"
+    directories['dnn'] = directories['model']+"/dnn"
+    directories['bnn'] = directories['model']+"/bnn"
 
     return directories
 
@@ -171,3 +196,8 @@ def setup_worker_logging(rank: int, log_queue: Queue):
     # are not going to get bubbled up to the parent's logger handlers from where the
     # actual logs are written to the output
     root_logger.setLevel(logging.INFO)
+
+def log_error(fname):
+    logging.basicConfig(filename=fname, level=logging.ERROR)
+    logging.error(traceback.format_exc())
+

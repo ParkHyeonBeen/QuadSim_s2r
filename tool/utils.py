@@ -121,6 +121,68 @@ def plot_variance_fig(mean_val, std_val, path):
     # plt.show()
     plt.clf()
 
+def eval_plot(step, pos, vel, rpy, angvel, policy, force):
+    plt.clf()
+    clear_output(True)
+    step = np.array(range(step+2))
+    rpy = rpy * 180 / math.pi
+
+    plt.figure(1)
+    for i in range(3):
+        plt.subplot(3, 2, 2*i+1)
+        plt.plot(step, pos[:, i])
+        plt.xlim(0, 1000)
+        plt.grid(True)
+        if i == 0:
+            plt.title("Position")
+
+        plt.subplot(3, 2, 2 * i + 2)
+        plt.plot(step, vel[:, i])
+        plt.xlim(0, 1000)
+        plt.grid(True)
+        if i == 0:
+            plt.title("Velocity")
+
+    plt.figure(2)
+    for i in range(3):
+        plt.subplot(3, 2, 2 * i + 1)
+        plt.plot(step, rpy[:, i])
+        plt.xlim(0, 1000)
+        plt.grid(True)
+        if i == 0:
+            plt.title("Euler angle")
+
+        plt.subplot(3, 2, 2 * i + 2)
+        plt.plot(step, angvel[:, i])
+        plt.xlim(0, 1000)
+        plt.grid(True)
+        if i == 0:
+            plt.title("Angular velocity")
+
+    plt.figure(3, figsize=(20, 5))
+    for i in range(4):
+        plt.subplot(4, 1, i+1)
+        plt.xlim(0, 1000)
+        plt.ylim(-1, 1)
+        plt.plot(step, policy[:, i])
+        plt.grid(True)
+        if i == 0:
+            plt.title("Policy action")
+
+    plt.figure(4, figsize=(20, 5))
+    for i in range(4):
+        plt.subplot(4, 1, i + 1)
+        plt.xlim(0, 1000)
+        plt.ylim(0, 10)
+        plt.plot(step, force[:, i])
+        plt.grid(True)
+        if i == 0:
+            plt.title("Motor force")
+
+    # plt.savefig(path + '/sac_v2_multi.png')
+    plt.show()
+
+
 def weight_init(m):
     """Custom weight init for Conv2D and Linear layers.
         Reference: https://github.com/MishaLaskin/rad/blob/master/curl_sac.py"""

@@ -11,10 +11,9 @@ class QuadRotorAsset():
         """
         self.step_size = args.step_size          # unit: second
         self.sample_time = sample_time
-        self.lag_ratio = args.lag_ratio
+        self.init_lag_ratio = args.lag_ratio
         assert self.sample_time % self.step_size == 0
         self.n_frame = int(self.sample_time/self.step_size)
-
         self.mode = args.quad_ver
 
         if self.mode == "v1":  # 3d printed micro drone
@@ -50,6 +49,7 @@ class QuadRotorAsset():
         self.kt = self.init_kt              # RPM to Thrust coefficient
         self.max_rpm = self.init_max_rpm    # Maximum RPM
         self.kq = self.init_kq              # RPM to Torque coefficient
+        self.lag_ratio = self.init_lag_ratio
 
         # related to disturbance
         self.alpha = args.alpha             # Thrust to Torque coefficient
@@ -121,7 +121,7 @@ class QuadRotorAsset():
 
         return np.array([
             [math.sin(phi), math.cos(phi)],
-            [math.sin(theta), math.cos(theta), ],
+            [math.sin(theta), math.cos(theta)],
             [math.sin(psi), math.cos(psi)]])
 
     def _get_C_inv(self, inp):     # inverse matrix of Euler rate to Body angular rate matrix
