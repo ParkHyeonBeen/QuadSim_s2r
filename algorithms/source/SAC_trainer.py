@@ -115,64 +115,71 @@ class SAC_Trainer():
         reward = torch.FloatTensor(reward).to(device)
         done = torch.FloatTensor(np.float32(done)).to(device)
 
-        predicted_q_value1 = self.soft_q_net1(network_state, action)
-        predicted_q_value2 = self.soft_q_net2(network_state, action)
-        new_action, log_prob, z, mean, log_std = self.policy_net.evaluate(network_state)
-        new_next_action, next_log_prob, _, _, _ = self.policy_net.evaluate(next_network_state)
-        # reward = reward_scale * (reward - reward.mean(dim=0)) / (reward.std(dim=0) + 1e-6) # normalize with batch mean and std; plus a small number to prevent numerical problem
+        if worker_step < args.model_train_start_step:
 
-        # Training Q Function
-        target_q_min = torch.min(self.target_soft_q_net1(next_network_state, new_next_action),
-                                 self.target_soft_q_net2(next_network_state, new_next_action)) - self.alpha.detach() * next_log_prob
-        target_q_value = reward + (1 - done) * gamma * target_q_min # if done==1, only reward
-        q_value_loss1 = self.soft_q_criterion1(predicted_q_value1, target_q_value.detach())  # detach: no gradients for the variable
-        q_value_loss2 = self.soft_q_criterion2(predicted_q_value2, target_q_value.detach())
-        q_loss = 0.5*q_value_loss1 + 0.5*q_value_loss2
-        self.soft_q_optimizer.zero_grad()
-        q_loss.backward()
-        self.soft_q_optimizer.step()
+            predicted_q_value1 = self.soft_q_net1(network_state, action)
+            predicted_q_value2 = self.soft_q_net2(network_state, action)
+            new_action, log_prob, z, mean, log_std = self.policy_net.evaluate(network_state)
+            new_next_action, next_log_prob, _, _, _ = self.policy_net.evaluate(next_network_state)
+            # reward = reward_scale * (reward - reward.mean(dim=0)) / (reward.std(dim=0) + 1e-6) # normalize with batch mean and std; plus a small number to prevent numerical problem
 
-        # Training Policy Function
-        predicted_new_q_value = torch.min(self.soft_q_net1(network_state, new_action, detach_encoder=True),
-                                          self.soft_q_net2(network_state, new_action, detach_encoder=True))
-        policy_loss = (self.alpha.detach() * log_prob - predicted_new_q_value).mean()
+            # Training Q Function
+            target_q_min = torch.min(self.target_soft_q_net1(next_network_state, new_next_action),
+                                     self.target_soft_q_net2(next_network_state, new_next_action)) - self.alpha.detach() * next_log_prob
+            target_q_value = reward + (1 - done) * gamma * target_q_min # if done==1, only reward
+            q_value_loss1 = self.soft_q_criterion1(predicted_q_value1, target_q_value.detach())  # detach: no gradients for the variable
+            q_value_loss2 = self.soft_q_criterion2(predicted_q_value2, target_q_value.detach())
+            q_loss = 0.5*q_value_loss1 + 0.5*q_value_loss2
+            self.soft_q_optimizer.zero_grad()
+            q_loss.backward()
+            self.soft_q_optimizer.step()
 
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward()
-        self.policy_optimizer.step()
-        # print('q loss: ', q_value_loss1, q_value_loss2)
-        # print('policy loss: ', policy_loss )
+            # Training Policy Function
+            predicted_new_q_value = torch.min(self.soft_q_net1(network_state, new_action, detach_encoder=True),
+                                              self.soft_q_net2(network_state, new_action, detach_encoder=True))
+            policy_loss = (self.alpha.detach() * log_prob - predicted_new_q_value).mean()
+
+            self.policy_optimizer.zero_grad()
+            policy_loss.backward()
+            self.policy_optimizer.step()
+            # print('q loss: ', q_value_loss1, q_value_loss2)
+            # print('policy loss: ', policy_loss )
+
+
+            # Training alpha wrt entropy
+            # alpha = 0.0  # trade-off between exploration (max entropy) and exploitation (max Q)
+            if auto_entropy is True:
+                alpha_loss = (-self.alpha * (log_prob + target_entropy).detach()).mean()
+                # print('alpha loss: ',alpha_loss)
+                self.alpha_optimizer.zero_grad()
+                alpha_loss.backward()
+                self.alpha_optimizer.step()
+
+            # Soft update the target value net
+            for target_param, param in zip(self.target_soft_q_net1.parameters(), self.soft_q_net1.parameters()):
+                target_param.data.copy_(  # copy data value into target parameters
+                    target_param.data * (1.0 - soft_tau) + param.data * soft_tau
+                )
+            for target_param, param in zip(self.target_soft_q_net2.parameters(), self.soft_q_net2.parameters()):
+                target_param.data.copy_(  # copy data value into target parameters
+                    target_param.data * (1.0 - soft_tau) + param.data * soft_tau
+                )
 
         # Training model network
-        if args.develop_mode == "imn" and worker_step > args.max_interaction/100:
-            self.inv_model_net.trains()
-            action_hat = self.inv_model_net(network_state, next_network_state)
-            if self.action_before is not None:
-                action_hat = self.action_before + 0.5 * (action_hat - self.action_before)
-            model_loss = F.smooth_l1_loss(action, action_hat).mean()
-            self.imn_optimizer.zero_grad()
-            model_loss.backward()
-            self.imn_optimizer.step()
-            self.action_before = action_hat
-
-        # Training alpha wrt entropy
-        # alpha = 0.0  # trade-off between exploration (max entropy) and exploitation (max Q)
-        if auto_entropy is True:
-            alpha_loss = (-self.alpha * (log_prob + target_entropy).detach()).mean()
-            # print('alpha loss: ',alpha_loss)
-            self.alpha_optimizer.zero_grad()
-            alpha_loss.backward()
-            self.alpha_optimizer.step()
-
-        # Soft update the target value net
-        for target_param, param in zip(self.target_soft_q_net1.parameters(), self.soft_q_net1.parameters()):
-            target_param.data.copy_(  # copy data value into target parameters
-                target_param.data * (1.0 - soft_tau) + param.data * soft_tau
-            )
-        for target_param, param in zip(self.target_soft_q_net2.parameters(), self.soft_q_net2.parameters()):
-            target_param.data.copy_(  # copy data value into target parameters
-                target_param.data * (1.0 - soft_tau) + param.data * soft_tau
-            )
+        else:
+            if args.develop_mode == "imn":
+                self.inv_model_net.trains()
+                action_hat = self.inv_model_net(network_state, next_network_state)
+                # if self.action_before is not None:
+                #     action_hat = self.action_before + 0.5 * (action_hat - self.action_before)
+                model_loss = F.smooth_l1_loss(action, action_hat).mean()
+                self.imn_optimizer.zero_grad()
+                model_loss.backward()
+                self.imn_optimizer.step()
+                # self.action_before = action_hat.detach()
+            else:
+                print("finish")
+                return
 
         return predicted_new_q_value.mean()
 

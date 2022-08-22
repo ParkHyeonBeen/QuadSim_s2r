@@ -63,6 +63,8 @@ class ReplayBuffer:
         """
         episode_num = min(self._episode_num, self.size)
         temp_buffer = {}
+
+
         for key in self.buffer.keys():
             temp_buffer[key] = self.buffer[key][:episode_num]
 
@@ -73,6 +75,7 @@ class ReplayBuffer:
         temp_buffer["rotation_next_obs"] = self.buffer["rotation_obs"][:, 1:, :]
         temp_buffer["angular_velocity_error_next_obs"] = self.buffer["angular_velocity_error_obs"][:, 1:, :]
         temp_buffer["action_next_obs"] = self.buffer["action_obs"][:, 1:, :]
+
 
         # Sample data.
         episode_idxs = np.random.randint(episode_num, size=batch_size)

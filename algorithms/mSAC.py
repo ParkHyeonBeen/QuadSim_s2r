@@ -32,7 +32,8 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
     setup_worker_logging(rank=0, log_queue=log_queue)
 
     # Configure environments to train
-    DETERMINISTIC = not args.train
+    DETERMINISTIC = not args.train\
+        if sac_trainer.worker_step.tolist()[0] < args.model_train_start_step else True
 
     env = Sim2RealEnv(args=args)
 
@@ -83,8 +84,8 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                             _ = sac_trainer.update(args, sac_trainer.worker_step.tolist()[0], target_entropy=-1.*env.action_dim)
                             sac_trainer.update_step += torch.tensor([1])
                         except:
+                            # logging.error(traceback.format_exc())
                             pass
-
             if done or success:
                 break
 
@@ -138,16 +139,18 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                                                              next_state["velocity_error_obs"],
                                                              next_state["rotation_obs"],
                                                              next_state["angular_velocity_error_obs"]])
-                        sac_trainer.inv_model_net.evals()
-                        if sac_trainer.worker_step.tolist()[0] > args.max_interaction/100:
+
+                        if sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
+                            sac_trainer.inv_model_net.evals()
+                            # if sac_trainer.worker_step.tolist()[0] > args.max_interaction/100:
                             action_hat = sac_trainer.inv_model_net(network_state, next_network_state).detach().cpu().numpy()
                             # eval_data.put_data(np.sqrt(np.mean((action_hat - action)**2)))
-                            if action_before is not None:
-                                action_hat = action_before + 0.5*(action_hat - action_before)
+                            # if action_before is not None:
+                            #     action_hat = action_before + 0.5*(action_hat - action_before)
                             episode_model_error.append(np.sqrt(np.mean((action_hat - action)**2)))
                             action_before = action_hat
-                        # env.render()
 
+                        # env.render()
                         state = next_state
                         episode_reward += reward
 
@@ -163,7 +166,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                 if best_score_tmp is not None:
                     best_score = best_score_tmp
 
-                if sac_trainer.worker_step.tolist()[0] > args.max_interaction / 100:
+                if sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
                     eval_error = np.mean([np.mean(episode_errors) for episode_errors in episodes_model_error], keepdims=True)
                     eval_data.put_data(eval_error)
                     best_error_tmp = save_model(sac_trainer.inv_model_net, best_error, eval_error[0],
@@ -174,6 +177,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                     # if len(eval_data.data) > 1:
                     #     plot_variance_fig(np.mean(episodes_model_error, axis=0), np.std(episodes_model_error, axis=0),
                     #                       model_path['train'] + "/episode_model_error.png")
+
                 rewards = [avg_reward, sac_trainer.worker_step.tolist()[0]]
                 rewards_queue.put(rewards)
                 logging.error(

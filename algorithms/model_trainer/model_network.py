@@ -225,17 +225,17 @@ class InverseModelNetwork(nn.Module):
         if self.net_type == "dnn":
             self.state_net = nn.Sequential(
                 nn.Linear(self.state_dim, int(self.hidden_dim/2)),
-                nn.Dropout(0.15),
+                nn.Dropout(0.05),
                 nn.ReLU()
             )
             self.next_state_net = nn.Sequential(
                 nn.Linear(self.state_dim, int(self.hidden_dim/2)),
-                nn.Dropout(0.15),
+                nn.Dropout(0.05),
                 nn.ReLU()
             )
             self.action_net = nn.Sequential(
                 nn.Linear(self.hidden_dim, self.hidden_dim),
-                nn.Dropout(0.15),
+                nn.Dropout(0.05),
                 nn.ReLU(),
                 nn.Linear(self.hidden_dim, self.action_dim)
             )
