@@ -169,19 +169,19 @@ class SAC_Trainer():
 
         # Training model network
         else:
-            if worker_step > args.model_train_start_step + 100000:
-                kl_weight = self.inv_model_net.kl_weight
-            else:
-                kl_weight = 0.
-
             if args.develop_mode == "imn":
                 self.inv_model_net.trains()
 
                 action_hat = self.inv_model_net(network_state, next_network_state, train=args.train)
                 # if self.action_before is not None:
                 #     action_hat = self.action_before + 0.5 * (action_hat - self.action_before)
-                model_loss = (F.smooth_l1_loss(action, action_hat)
-                              + kl_weight + self.inv_model_net.kl_loss(self.inv_model_net)).mean()
+
+                if worker_step > args.model_train_start_step + 100000:
+                    model_loss = (F.smooth_l1_loss(action, action_hat)
+                                  + self.inv_model_net.kl_weight * self.inv_model_net.kl_loss(self.inv_model_net)).mean()
+                else:
+                    model_loss = F.smooth_l1_loss(action, action_hat).mean()
+
                 self.imn_optimizer.zero_grad()
                 model_loss.backward()
                 self.imn_optimizer.step()

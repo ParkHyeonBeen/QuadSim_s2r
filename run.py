@@ -47,8 +47,8 @@ parser.add_argument('--model_train_start_step', default=2.0e7, type=int)
 
 # SAC
 parser.add_argument("--name", default="mSAC", type=str, help="Trained model is saved with this name.")
-parser.add_argument("--num_worker", default=5, type=int, help="The number of agents for collect data.")
-parser.add_argument("--num_update_worker", default=2, type=int, help="The number of agents for update networks.")
+parser.add_argument("--num_worker", default=22, type=int, help="The number of agents for collect data.")
+parser.add_argument("--num_update_worker", default=5, type=int, help="The number of agents for update networks.")
 parser.add_argument("--max_interaction", default=6e8, type=int, help="Maximum interactions for training.")
 parser.add_argument("--episode_length", default=1000, type=int, help="Maximum steps in an episode.")
 parser.add_argument("--random_action", default=1000, type=int, help="The number of random actions to be executed at the start of training.")

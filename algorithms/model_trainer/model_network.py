@@ -244,23 +244,23 @@ class InverseModelNetwork(nn.Module):
             self.is_freeze = False
 
             self.state_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.000001,
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
                                 in_features=self.state_dim, out_features=int(self.hidden_dim/2)),
                 # nn.Dropout(0.15),
                 nn.ReLU()
             )
             self.next_state_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.000001,
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
                                 in_features=self.state_dim, out_features=int(self.hidden_dim/2)),
                 # nn.Dropout(0.15),
                 nn.ReLU()
             )
             self.action_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.000001,
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
                                 in_features=self.hidden_dim, out_features=self.hidden_dim),
                 # nn.Dropout(0.15),
                 nn.ReLU(),
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.1,
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
                                 in_features=self.hidden_dim, out_features=self.action_dim)
             )
 
