@@ -176,7 +176,7 @@ class SAC_Trainer():
                 # if self.action_before is not None:
                 #     action_hat = self.action_before + 0.5 * (action_hat - self.action_before)
 
-                if worker_step > args.model_train_start_step + 100000:
+                if args.net_type == "bnn" and worker_step > args.model_train_start_step + 100000:
                     model_loss = (F.smooth_l1_loss(action, action_hat)
                                   + self.inv_model_net.kl_weight * self.inv_model_net.kl_loss(self.inv_model_net)).mean()
                 else:
