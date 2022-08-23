@@ -16,6 +16,7 @@ class SAC_Trainer():
         self.replay_buffer = replay_buffer
         self.transition_model_type = args.transition_type
         self.discount = args.gamma
+        self.env = env
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         action_dim = env.action_dim
@@ -116,7 +117,6 @@ class SAC_Trainer():
         done = torch.FloatTensor(np.float32(done)).to(device)
 
         if worker_step < args.model_train_start_step:
-
             predicted_q_value1 = self.soft_q_net1(network_state, action)
             predicted_q_value2 = self.soft_q_net2(network_state, action)
             new_action, log_prob, z, mean, log_std = self.policy_net.evaluate(network_state)
@@ -125,11 +125,13 @@ class SAC_Trainer():
 
             # Training Q Function
             target_q_min = torch.min(self.target_soft_q_net1(next_network_state, new_next_action),
-                                     self.target_soft_q_net2(next_network_state, new_next_action)) - self.alpha.detach() * next_log_prob
-            target_q_value = reward + (1 - done) * gamma * target_q_min # if done==1, only reward
-            q_value_loss1 = self.soft_q_criterion1(predicted_q_value1, target_q_value.detach())  # detach: no gradients for the variable
+                                     self.target_soft_q_net2(next_network_state,
+                                                             new_next_action)) - self.alpha.detach() * next_log_prob
+            target_q_value = reward + (1 - done) * gamma * target_q_min  # if done==1, only reward
+            q_value_loss1 = self.soft_q_criterion1(predicted_q_value1,
+                                                   target_q_value.detach())  # detach: no gradients for the variable
             q_value_loss2 = self.soft_q_criterion2(predicted_q_value2, target_q_value.detach())
-            q_loss = 0.5*q_value_loss1 + 0.5*q_value_loss2
+            q_loss = 0.5 * q_value_loss1 + 0.5 * q_value_loss2
             self.soft_q_optimizer.zero_grad()
             q_loss.backward()
             self.soft_q_optimizer.step()
@@ -144,7 +146,6 @@ class SAC_Trainer():
             self.policy_optimizer.step()
             # print('q loss: ', q_value_loss1, q_value_loss2)
             # print('policy loss: ', policy_loss )
-
 
             # Training alpha wrt entropy
             # alpha = 0.0  # trade-off between exploration (max entropy) and exploitation (max Q)
@@ -164,24 +165,29 @@ class SAC_Trainer():
                 target_param.data.copy_(  # copy data value into target parameters
                     target_param.data * (1.0 - soft_tau) + param.data * soft_tau
                 )
+            return predicted_new_q_value.mean()
 
         # Training model network
         else:
+            if worker_step > args.model_train_start_step + 100000:
+                kl_weight = self.inv_model_net.kl_weight
+            else:
+                kl_weight = 0.
+
             if args.develop_mode == "imn":
                 self.inv_model_net.trains()
-                action_hat = self.inv_model_net(network_state, next_network_state)
+
+                action_hat = self.inv_model_net(network_state, next_network_state, train=args.train)
                 # if self.action_before is not None:
                 #     action_hat = self.action_before + 0.5 * (action_hat - self.action_before)
-                model_loss = F.smooth_l1_loss(action, action_hat).mean()
+                model_loss = (F.smooth_l1_loss(action, action_hat)
+                              + kl_weight + self.inv_model_net.kl_loss(self.inv_model_net)).mean()
                 self.imn_optimizer.zero_grad()
                 model_loss.backward()
                 self.imn_optimizer.step()
                 # self.action_before = action_hat.detach()
             else:
-                print("finish")
                 return
-
-        return predicted_new_q_value.mean()
 
 class ValueNetwork(nn.Module):
     def __init__(self, state_dim, hidden_dim, encoder_feature_dim=50, init_w=3e-3):

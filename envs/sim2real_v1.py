@@ -10,6 +10,7 @@ class Sim2RealEnv(QuadRotorAsset):
             self,
             args,
             reset_noise_scale=0.1
+
     ):
         super(Sim2RealEnv, self).__init__(args=args)
 
@@ -22,6 +23,7 @@ class Sim2RealEnv(QuadRotorAsset):
         self.init_max_ang = args.init_max_ang
         self.init_max_vel = args.init_max_vel
         self.init_max_ang_vel = args.init_max_ang_vel
+
         self.random_ratio = args.random_ratio
         self.random_min = 1. - self.random_ratio
         self.random_max = 1. + self.random_ratio

@@ -46,7 +46,7 @@ class ModelNetwork(nn.Module):
             )
             self.next_state_net = nn.Sequential(
                 nn.Linear(self.hidden_dim, self.hidden_dim),
-                nn.Dropout(0.15),
+                # nn.Dropout(0.15),
                 nn.ReLU(),
                 nn.Linear(self.hidden_dim, self.state_dim)
             )
@@ -225,17 +225,17 @@ class InverseModelNetwork(nn.Module):
         if self.net_type == "dnn":
             self.state_net = nn.Sequential(
                 nn.Linear(self.state_dim, int(self.hidden_dim/2)),
-                nn.Dropout(0.05),
+                # nn.Dropout(0.05),
                 nn.ReLU()
             )
             self.next_state_net = nn.Sequential(
                 nn.Linear(self.state_dim, int(self.hidden_dim/2)),
-                nn.Dropout(0.05),
+                # nn.Dropout(0.05),
                 nn.ReLU()
             )
             self.action_net = nn.Sequential(
                 nn.Linear(self.hidden_dim, self.hidden_dim),
-                nn.Dropout(0.05),
+                # nn.Dropout(0.05),
                 nn.ReLU(),
                 nn.Linear(self.hidden_dim, self.action_dim)
             )
@@ -244,29 +244,30 @@ class InverseModelNetwork(nn.Module):
             self.is_freeze = False
 
             self.state_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.1,
-                                in_features=self.state_dim*self.n_history, out_features=int(self.hidden_dim/2)),
-                nn.Dropout(0.15),
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.000001,
+                                in_features=self.state_dim, out_features=int(self.hidden_dim/2)),
+                # nn.Dropout(0.15),
                 nn.ReLU()
             )
             self.next_state_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.1,
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.000001,
                                 in_features=self.state_dim, out_features=int(self.hidden_dim/2)),
-                nn.Dropout(0.15),
+                # nn.Dropout(0.15),
                 nn.ReLU()
             )
             self.action_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.1,
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.000001,
                                 in_features=self.hidden_dim, out_features=self.hidden_dim),
-                nn.Dropout(0.15),
+                # nn.Dropout(0.15),
                 nn.ReLU(),
                 bnn.BayesLinear(prior_mu=0, prior_sigma=0.1,
-                                in_features=self.hidden_dim, out_features=self.hidden_dim)
+                                in_features=self.hidden_dim, out_features=self.action_dim)
             )
 
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.kl_loss = bnn.BKLLoss(reduction='mean', last_layer_only=False)
+
         self.kl_weight = args.inv_model_kl_weight
 
         self.apply(weight_init)
@@ -278,11 +279,15 @@ class InverseModelNetwork(nn.Module):
             if train is False and self.is_freeze is False:
                 # eps_zero fcn is a customized fcn to make eps weight and bias be zero.
                 # so, you should customize utils.__init__.py , freeze_model.py, and linear.py
-                bnn.utils.eps_zero(self.imn)
+                bnn.utils.eps_zero(self.state_net)
+                bnn.utils.eps_zero(self.next_state_net)
+                bnn.utils.eps_zero(self.action_net)
                 self.is_freeze = True
 
             if train is True and self.is_freeze is True:
-                bnn.utils.unfreeze(self.imn)
+                bnn.utils.unfreeze(self.state_net)
+                bnn.utils.unfreeze(self.next_state_net)
+                bnn.utils.unfreeze(self.action_net)
                 self.is_freeze = False
 
         # Tensorlizing

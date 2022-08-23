@@ -1,11 +1,9 @@
 #####################################################################################
 '''
 Soft Actor Critic (SAC) for Drone Navigation
-
 Author  : Jongchan Baek, Yoonsu Jang
 Date    : 2020.12.07
 Contact : paekgga@postech.ac.kr
-
 Reference
 [1] Tuomas Haarnoja, Aurick Zhou, Pieter Abbeel, and Sergey Levine, "Soft
        Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning
@@ -75,6 +73,9 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
 
             state = next_state
             episode_reward += reward
+
+            if sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
+                env.random_ratio = 0.
 
             # Update networks per step
             if sac_trainer.worker_step > args.random_action * args.num_worker:

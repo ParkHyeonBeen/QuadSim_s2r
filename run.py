@@ -31,11 +31,11 @@ parser.add_argument("--develop-mode", "-dm", default='imn', type=str,
                          "mn_mrrl: model reference rl with model network,"
                          "imn    : inverse model network")
 parser.add_argument("--env-name", default='QuadRotor-v0', type=str, help="If True, run_train")
-parser.add_argument("--net-type", default='dnn', type=str, help="dnn, bnn")
+parser.add_argument("--net-type", default='bnn', type=str, help="dnn, bnn")
 
 # For test
-parser.add_argument("--test_eps", default=50, type=int, help="The number of test episode using trained policy.")
-parser.add_argument("--result_name", default="0818-1403QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
+parser.add_argument("--test_eps", default=1000, type=int, help="The number of test episode using trained policy.")
+parser.add_argument("--result_name", default="0820-0410QuadRotor-v0_smooth0.5_97.3", type=str, help="Checkpoint path to a pre-trained model.")
 
 # For train
 # ModelNet
@@ -43,13 +43,13 @@ parser.add_argument("--model_lr", default=3e-4, type=float, help="Learning rate 
 parser.add_argument("--inv_model_lr", default=3e-4, type=float, help="Learning rate for inverse model network update.")
 parser.add_argument('--model-kl-weight', default=0.00001, type=float)
 parser.add_argument('--inv-model-kl-weight', default=0.00001, type=float)
-parser.add_argument('--model_train_start_step', default=2.3e7, type=int)
+parser.add_argument('--model_train_start_step', default=2.0e7, type=int)
 
 # SAC
 parser.add_argument("--name", default="mSAC", type=str, help="Trained model is saved with this name.")
-parser.add_argument("--num_worker", default=6, type=int, help="The number of agents for collect data.")
+parser.add_argument("--num_worker", default=5, type=int, help="The number of agents for collect data.")
 parser.add_argument("--num_update_worker", default=2, type=int, help="The number of agents for update networks.")
-parser.add_argument("--max_interaction", default=4e8, type=int, help="Maximum interactions for training.")
+parser.add_argument("--max_interaction", default=6e8, type=int, help="Maximum interactions for training.")
 parser.add_argument("--episode_length", default=1000, type=int, help="Maximum steps in an episode.")
 parser.add_argument("--random_action", default=1000, type=int, help="The number of random actions to be executed at the start of training.")
 parser.add_argument("--sampling_time", default=0.01, type=float, help="Sampling time for policy.")
@@ -69,7 +69,7 @@ parser.add_argument("--buffer_size", default=3e6, type=int, help="Buffer size.")
 parser.add_argument("--batch_size", default=128, type=int, help="Batch size.")
 parser.add_argument("--future_p", default=0.7, type=float, help="The probability of replacing goals for a sample.")
 
-parser.add_argument("--random_ratio", default=0., type=float, help="Random ratio for quadrotor parameter.")
+parser.add_argument("--random_ratio", default=0.05, type=float, help="Random ratio for quadrotor parameter.")
 parser.add_argument("--update_iter", default=1, type=int, help="Update iteration for one step.")
 parser.add_argument("--pol_lr", default=3e-4, type=float, help="Learning rate for actor (policy) update.")
 parser.add_argument("--val_lr", default=3e-4, type=float, help="Learning rate for critic (Q, V) update.")
@@ -183,7 +183,7 @@ if __name__ == '__main__':
 
         log_dir = load_log_directories(args.result_name)
         load_model(sac_trainer.policy_net, log_dir["policy"], "policy_best")
-        load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
+        # load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
         env = Sim2RealEnv(args=args)
 
         success_rate = 0
