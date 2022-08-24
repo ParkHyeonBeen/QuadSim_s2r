@@ -7,6 +7,7 @@ import numpy as np
 import random
 
 from ..model_trainer.model_network import *
+from tool.utils_model import *
 
 # from environment.models import Generator
 # import torchvision.transforms as transforms
@@ -67,7 +68,7 @@ class SAC_Trainer():
             self.pid_net.trains()
 
         if args.develop_mode == "imn":
-            self.inv_model_net = InverseModelNetwork(state_dim, action_dim, hidden_dim, args).to(device)
+            self.inv_model_net = InverseModelNetwork(env, hidden_dim, args).to(device)
             self.imn_optimizer = optim.Adam(self.inv_model_net.parameters(), lr=args.inv_model_lr)
             self.inv_model_net.trains()
             self.imn_criterion = nn.MSELoss()
@@ -95,28 +96,28 @@ class SAC_Trainer():
         auto_entropy = args.AUTO_ENTROPY
         gamma = args.gamma
         soft_tau = args.soft_tau
-        transition = self.replay_buffer.get_batch(batch_size)
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        network_state = np.concatenate([transition["position_error_obs"],
-                                        transition["velocity_error_obs"],
-                                        transition["rotation_obs"],
-                                        transition["angular_velocity_error_obs"]], axis=1)
-        next_network_state = np.concatenate([transition["position_error_next_obs"],
-                                            transition["velocity_error_next_obs"],
-                                            transition["rotation_next_obs"],
-                                            transition["angular_velocity_error_next_obs"]], axis=1)
-        reward = transition["reward"]
-        done = transition["done"]
-        action = transition["action"]
-
-        network_state = torch.FloatTensor(network_state).to(device)
-        next_network_state = torch.FloatTensor(next_network_state).to(device)
-        action = torch.FloatTensor(action).to(device)
-        reward = torch.FloatTensor(reward).to(device)
-        done = torch.FloatTensor(np.float32(done)).to(device)
-
         if worker_step < args.model_train_start_step:
+            transition = self.replay_buffer.get_batch(batch_size)
+            network_state = np.concatenate([transition["position_error_obs"],
+                                            transition["velocity_error_obs"],
+                                            transition["rotation_obs"],
+                                            transition["angular_velocity_error_obs"]], axis=1)
+            next_network_state = np.concatenate([transition["position_error_next_obs"],
+                                                transition["velocity_error_next_obs"],
+                                                transition["rotation_next_obs"],
+                                                transition["angular_velocity_error_next_obs"]], axis=1)
+            reward = transition["reward"]
+            done = transition["done"]
+            action = transition["action"]
+
+            network_state = torch.FloatTensor(network_state).to(device)
+            next_network_state = torch.FloatTensor(next_network_state).to(device)
+            action = torch.FloatTensor(action).to(device)
+            reward = torch.FloatTensor(reward).to(device)
+            done = torch.FloatTensor(np.float32(done)).to(device)
+
             predicted_q_value1 = self.soft_q_net1(network_state, action)
             predicted_q_value2 = self.soft_q_net2(network_state, action)
             new_action, log_prob, z, mean, log_std = self.policy_net.evaluate(network_state)
@@ -170,9 +171,26 @@ class SAC_Trainer():
         # Training model network
         else:
             if args.develop_mode == "imn":
+                transition = self.replay_buffer.get_batch(64)
                 self.inv_model_net.trains()
+                network_state = np.concatenate([transition["position_obs"],
+                                                (transition["position_next_obs"] - transition["position_obs"])/self.env.sample_time,
+                                                transition["rotation_obs"],
+                                                (transition["rotation_next_obs"] - transition["rotation_obs"])/self.env.sample_time], axis=1)
+                next_network_state = np.concatenate([transition["position_next_obs"][:3],
+                                                     transition["rotation_next_obs"][:6]], axis=1)
+                prev_network_action = transition["action_obs"][self.env.action_dim:]
 
-                action_hat = self.inv_model_net(network_state, next_network_state, train=args.train)
+                # network_state, prev_network_action, next_network_state = get_model_net_input(self.env, transition, transition)
+
+                action = transition["action"]
+
+                network_state = torch.FloatTensor(network_state).to(device)
+                next_network_state = torch.FloatTensor(next_network_state).to(device)
+                prev_network_action = torch.FloatTensor(prev_network_action).to(device)
+                action = torch.FloatTensor(action).to(device)
+
+                action_hat = self.inv_model_net(network_state, next_network_state, prev_network_action, train=args.train)
                 # if self.action_before is not None:
                 #     action_hat = self.action_before + 0.5 * (action_hat - self.action_before)
 

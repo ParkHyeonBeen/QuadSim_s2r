@@ -8,6 +8,18 @@ from tool.utils import *
 #     else:
 #         torch.save(network.state_dict(), path + fname)
 
+def get_model_net_input(env, state, next_state):
+
+    network_state = np.concatenate([state["position_obs"],
+                                    (next_state["position_obs"] - state["position_obs"]) / env.sample_time,
+                                    state["rotation_obs"],
+                                    (next_state["rotation_obs"] - state["rotation_obs"]) / env.sample_time], axis=-1)
+    next_network_state = np.concatenate([next_state["position_obs"][:3],
+                                         next_state["rotation_obs"][:6]], axis=-1)
+    prev_network_action = state["action_obs"][env.action_dim:]
+
+    return network_state, prev_network_action, next_network_state
+
 def create_models(state_dim, action_dim, algorithm, args, net_type="dnn,bnn"):
 
     models = {}

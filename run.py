@@ -43,7 +43,7 @@ parser.add_argument("--model_lr", default=3e-4, type=float, help="Learning rate 
 parser.add_argument("--inv_model_lr", default=3e-4, type=float, help="Learning rate for inverse model network update.")
 parser.add_argument('--model-kl-weight', default=0.00001, type=float)
 parser.add_argument('--inv-model-kl-weight', default=0.00001, type=float)
-parser.add_argument('--model_train_start_step', default=3.0e7, type=int)
+parser.add_argument('--model_train_start_step', default=1.3e7, type=int)
 
 # SAC
 parser.add_argument("--name", default="mSAC", type=str, help="Trained model is saved with this name.")
@@ -183,7 +183,7 @@ if __name__ == '__main__':
 
         log_dir = load_log_directories(args.result_name)
         load_model(sac_trainer.policy_net, log_dir["policy"], "policy_best")
-        # load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
+        load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
         env = Sim2RealEnv(args=args)
 
         success_rate = 0
@@ -205,11 +205,21 @@ if __name__ == '__main__':
             policy = a[:4]
             force = np.zeros(4)
             step = 0
+            episode_model_error = []
 
             for step in range(args.episode_length):
                 network_state = np.concatenate([p, v, r, w])
                 action = sac_trainer.policy_net.get_action(network_state, deterministic=not args.train)
                 next_state, reward, done, success, f = env.step(action)
+
+                sac_trainer.inv_model_net.evals()
+
+                network_state, prev_network_action, next_network_state \
+                    = get_model_net_input(env, state, next_state)
+                action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
+                                                       next_network_state).detach().cpu().numpy()
+                episode_model_error.append(np.sqrt(np.mean((action_hat - action) ** 2)))
+
                 episode_reward += reward
                 state = next_state
 
@@ -235,7 +245,9 @@ if __name__ == '__main__':
 
             # eval_plot(step, pos, vel, rpy, angvel, policy, force)
 
-            print('Episode: ', eps, '| Episode Reward: ', episode_reward)
+            with open(log_dir["test"] + 'test_result.txt', 'w') as f:
+                print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error), file=f)
+            print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error))
             avg_reward += episode_reward
             if episode_reward > 300:
                 suc_reward += episode_reward
@@ -243,4 +255,5 @@ if __name__ == '__main__':
         suc_reward /= success_rate
         success_rate /= args.test_eps
         avg_reward /= args.test_eps
-        print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)
+        with open(log_dir["test"] + 'test_result.txt', 'w') as f:
+            print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)

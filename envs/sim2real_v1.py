@@ -232,14 +232,18 @@ class Sim2RealEnv(QuadRotorAsset):
         # Update history
         if mem_reset:  # first time step
             self.mem_position = np.concatenate([position] * self.n_history)
+            self.mem_velocity = np.concatenate([velocity] * self.n_history)
             self.mem_position_error = np.concatenate([position_error] * self.n_history)
             self.mem_velocity_error = np.concatenate([velocity_error] * self.n_history)
             self.mem_rotation = np.concatenate([rotation] * self.n_history)
+            self.mem_angular_velocity = np.concatenate([angular_velocity] * self.n_history)
             self.mem_angular_velocity_error = np.concatenate([angular_velocity_state] * self.n_history)
             self.mem_action = np.concatenate([np.zeros(self.action_dim)] * self.n_history, axis=-1)
         else:
             self.mem_position[len(position):] = self.mem_position[:len(position) * (self.n_history - 1)]
             self.mem_position[:len(position)] = position
+            self.mem_velocity[len(velocity):] = self.mem_velocity[:len(velocity) * (self.n_history - 1)]
+            self.mem_velocity[:len(velocity)] = velocity
             self.mem_position_error[len(position_error):] = self.mem_position_error[
                                                             :len(position_error) * (self.n_history - 1)]
             self.mem_position_error[:len(position_error)] = position_error
@@ -252,6 +256,9 @@ class Sim2RealEnv(QuadRotorAsset):
                                                                             :len(angular_velocity_state) * (
                                                                                         self.n_history - 1)]
             self.mem_angular_velocity_error[:len(angular_velocity_state)] = angular_velocity_state
+            self.mem_angular_velocity[len(angular_velocity):] = self.mem_angular_velocity[
+                                                                :len(angular_velocity) * (self.n_history - 1)]
+            self.mem_angular_velocity[:len(angular_velocity)] = angular_velocity
             self.mem_action[len(self.action_tanh):] = self.mem_action[:len(self.action_tanh) * (self.n_history - 1)]
             self.mem_action[:len(self.action_tanh)] = self.action_tanh
 

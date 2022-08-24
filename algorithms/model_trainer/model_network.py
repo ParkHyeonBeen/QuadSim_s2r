@@ -194,7 +194,7 @@ class PidNetwork(nn.Module):
         self.sum.eval()
 
 class InverseModelNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim, hidden_dim, args, net_type=None):
+    def __init__(self, env, hidden_dim, args, net_type=None):
         super(InverseModelNetwork, self).__init__()
 
         if net_type is None:
@@ -204,10 +204,15 @@ class InverseModelNetwork(nn.Module):
 
         self.args = args
 
-        self.action_dim = action_dim
-        self.state_dim = state_dim
+        self.action_dim = env.action_dim
+        self.position_dim = env.position_dim
+        self.velocity_dim = env.velocity_dim
+        self.rotation_dim = env.rotation_dim
         self.hidden_dim = hidden_dim
-        self.n_history = self.args.n_history
+
+        self.state_net_input = (self.position_dim + self.rotation_dim)*2*self.args.n_history
+        self.next_state_net_input = self.position_dim + self.rotation_dim
+        self.prev_action_net_input = self.action_dim * (self.args.n_history-1)
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -224,12 +229,22 @@ class InverseModelNetwork(nn.Module):
         # construct the structure of model network
         if self.net_type == "dnn":
             self.state_net = nn.Sequential(
-                nn.Linear(self.state_dim, int(self.hidden_dim/2)),
+                nn.Linear(self.state_net_input, int(self.hidden_dim/2)),
+                # nn.Dropout(0.05),
+                nn.ReLU()
+            )
+            self.prev_action_net = nn.Sequential(
+                nn.Linear(self.prev_action_net_input, int(self.hidden_dim / 2)),
+                # nn.Dropout(0.05),
+                nn.ReLU()
+            )
+            self.middle_net = nn.Sequential(
+                nn.Linear(self.hidden_dim, int(self.hidden_dim / 2)),
                 # nn.Dropout(0.05),
                 nn.ReLU()
             )
             self.next_state_net = nn.Sequential(
-                nn.Linear(self.state_dim, int(self.hidden_dim/2)),
+                nn.Linear(self.next_state_net_input, int(self.hidden_dim/2)),
                 # nn.Dropout(0.05),
                 nn.ReLU()
             )
@@ -245,16 +260,32 @@ class InverseModelNetwork(nn.Module):
 
             self.state_net = nn.Sequential(
                 bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
-                                in_features=self.state_dim, out_features=int(self.hidden_dim/2)),
+                                in_features=self.state_net_input, out_features=int(self.hidden_dim/2)),
                 # nn.Dropout(0.15),
                 nn.ReLU()
             )
+
+            self.prev_action_net = nn.Sequential(
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
+                                in_features=self.prev_action_net_input, out_features=int(self.hidden_dim / 2)),
+                # nn.Dropout(0.15),
+                nn.ReLU()
+            )
+
+            self.middle_net = nn.Sequential(
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
+                                in_features=self.hidden_dim, out_features=int(self.hidden_dim / 2)),
+                # nn.Dropout(0.15),
+                nn.ReLU()
+            )
+
             self.next_state_net = nn.Sequential(
                 bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
-                                in_features=self.state_dim, out_features=int(self.hidden_dim/2)),
+                                in_features=self.next_state_net_input, out_features=int(self.hidden_dim/2)),
                 # nn.Dropout(0.15),
                 nn.ReLU()
             )
+
             self.action_net = nn.Sequential(
                 bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
                                 in_features=self.hidden_dim, out_features=self.hidden_dim),
@@ -272,7 +303,7 @@ class InverseModelNetwork(nn.Module):
 
         self.apply(weight_init)
 
-    def forward(self, state, next_state, train=False):
+    def forward(self, state, prev_action, next_state, train=False):
 
         # bnn freezing part to evaluate the model with mean value
         if self.net_type == 'bnn':
@@ -280,35 +311,46 @@ class InverseModelNetwork(nn.Module):
                 # eps_zero fcn is a customized fcn to make eps weight and bias be zero.
                 # so, you should customize utils.__init__.py , freeze_model.py, and linear.py
                 bnn.utils.eps_zero(self.state_net)
+                bnn.utils.eps_zero(self.prev_action_net)
+                bnn.utils.eps_zero(self.middle_net)
                 bnn.utils.eps_zero(self.next_state_net)
                 bnn.utils.eps_zero(self.action_net)
                 self.is_freeze = True
 
             if train is True and self.is_freeze is True:
                 bnn.utils.unfreeze(self.state_net)
+                bnn.utils.unfreeze(self.prev_action_net)
+                bnn.utils.unfreeze(self.middle_net)
                 bnn.utils.unfreeze(self.next_state_net)
                 bnn.utils.unfreeze(self.action_net)
                 self.is_freeze = False
 
         # Tensorlizing
-        out = _format(self.device, state, next_state)
+        out = _format(self.device, state, prev_action, next_state)
 
         # To normalize(-1~1) input data by using the softsign fcn
-        state = self.state_net(F.softsign(out[0]))
-        next_state = self.next_state_net(F.softsign(out[1]))
+        state = self.state_net(out[0])
+        prev_action = self.prev_action_net(out[1])
+
+        middle = self.middle_net(torch.cat([state, prev_action], dim=-1))
+        next_state = self.next_state_net(out[2])
 
         # Testing data has 1 dim date(vector), so we should remove dim=1
-        action = torch.tanh(self.action_net(torch.cat([state, next_state], dim=-1)))
+        action = torch.tanh(self.action_net(torch.cat([middle, next_state], dim=-1)))
         return action
 
     def trains(self):
         self.state_net.train()
         self.action_net.train()
+        self.prev_action_net.train()
+        self.middle_net.train()
         self.next_state_net.train()
 
     def evals(self):
         self.state_net.eval()
         self.action_net.eval()
+        self.prev_action_net.eval()
+        self.middle_net.eval()
         self.next_state_net.eval()
 
     # def update(self):

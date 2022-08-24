@@ -44,7 +44,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
     while sac_trainer.worker_step < args.max_interaction:
 
         if sac_trainer.worker_step == args.model_train_start_step:
-            env.random_ratio = 0.
+            env.random_ratio = int(0)
             load_model(sac_trainer.policy_net, model_path["policy"], "policy_best")
 
         # Episode start
@@ -138,20 +138,15 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                                                         state["angular_velocity_error_obs"]])
                         action = sac_trainer.policy_net.get_action(network_state, deterministic=args.train)
                         next_state, reward, done, success, _ = env.step(action)
-                        next_network_state = np.concatenate([next_state["position_error_obs"],
-                                                             next_state["velocity_error_obs"],
-                                                             next_state["rotation_obs"],
-                                                             next_state["angular_velocity_error_obs"]])
 
                         if sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
                             sac_trainer.inv_model_net.evals()
-                            # if sac_trainer.worker_step.tolist()[0] > args.max_interaction/100:
-                            action_hat = sac_trainer.inv_model_net(network_state, next_network_state).detach().cpu().numpy()
-                            # eval_data.put_data(np.sqrt(np.mean((action_hat - action)**2)))
-                            # if action_before is not None:
-                            #     action_hat = action_before + 0.5*(action_hat - action_before)
+
+                            network_state, prev_network_action, next_network_state \
+                                = get_model_net_input(env, state, next_state)
+
+                            action_hat = sac_trainer.inv_model_net(network_state, prev_network_action, next_network_state).detach().cpu().numpy()
                             episode_model_error.append(np.sqrt(np.mean((action_hat - action)**2)))
-                            action_before = action_hat
 
                         # env.render()
                         state = next_state
