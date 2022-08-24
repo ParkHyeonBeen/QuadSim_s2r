@@ -24,7 +24,7 @@ parser.add_argument("--gpu", default=True, type=bool, help="If use gpu, True")
 parser.add_argument("--device-idx", default=0, type=int, help="a index about gpu device")
 
 # Main controller
-parser.add_argument("--train", default=True, type=bool, help="If True, run_train")
+parser.add_argument("--train", default=False, type=bool, help="If True, run_train")
 parser.add_argument("--develop-mode", "-dm", default='imn', type=str,
                     help="none   : only policy network,"
                          "mrrl   : model reference rl,"
@@ -35,7 +35,8 @@ parser.add_argument("--net-type", default='bnn', type=str, help="dnn, bnn")
 
 # For test
 parser.add_argument("--test_eps", default=1000, type=int, help="The number of test episode using trained policy.")
-parser.add_argument("--result_name", default="0820-0410QuadRotor-v0_smooth0.5_97.3", type=str, help="Checkpoint path to a pre-trained model.")
+parser.add_argument("--result_name", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
+parser.add_argument("--model_on", default=False, type=bool, help="if True, activate model network")
 
 # For train
 # ModelNet
@@ -84,7 +85,7 @@ parser.add_argument("--HER", default=False, type=bool, help="If True, replay buf
 
 # for environment
 parser.add_argument("--init_max_pbox", default=3., type=float, help="max initial position near goal")
-parser.add_argument("--init_max_ang", default=90, type=float, help="max initial degree angle for roll and pitch")
+parser.add_argument("--init_max_ang", default=45, type=float, help="max initial degree angle for roll and pitch")
 parser.add_argument("--init_max_vel", default=0.5, type=float, help="max initial velocity")
 parser.add_argument("--init_max_ang_vel", default=1.*np.pi, type=float, help="max initial angular velocity")
 parser.add_argument("--thrust_noise_sigma", default=0.05, type=float, help="motor noise scale")
@@ -183,13 +184,14 @@ if __name__ == '__main__':
 
         log_dir = load_log_directories(args.result_name)
         load_model(sac_trainer.policy_net, log_dir["policy"], "policy_best")
-        load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
+        if args.model_on:
+            load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
         env = Sim2RealEnv(args=args)
 
         success_rate = 0
         avg_reward = 0
         suc_reward = 0
-
+        result_txt = open(log_dir["test"] + '/test_result.txt', 'w')
         for eps in range(args.test_eps):
             state = env.reset()
             episode_reward = 0
@@ -212,13 +214,13 @@ if __name__ == '__main__':
                 action = sac_trainer.policy_net.get_action(network_state, deterministic=not args.train)
                 next_state, reward, done, success, f = env.step(action)
 
-                sac_trainer.inv_model_net.evals()
-
-                network_state, prev_network_action, next_network_state \
-                    = get_model_net_input(env, state, next_state)
-                action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
-                                                       next_network_state).detach().cpu().numpy()
-                episode_model_error.append(np.sqrt(np.mean((action_hat - action) ** 2)))
+                if args.model_on:
+                    sac_trainer.inv_model_net.evals()
+                    network_state, prev_network_action, next_network_state \
+                        = get_model_net_input(env, state, next_state)
+                    action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
+                                                           next_network_state).detach().cpu().numpy()
+                    episode_model_error.append(np.sqrt(np.mean((action_hat - action) ** 2)))
 
                 episode_reward += reward
                 state = next_state
@@ -245,9 +247,8 @@ if __name__ == '__main__':
 
             # eval_plot(step, pos, vel, rpy, angvel, policy, force)
 
-            with open(log_dir["test"] + 'test_result.txt', 'w') as f:
-                print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error), file=f)
             print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error))
+            print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error), file=result_txt)
             avg_reward += episode_reward
             if episode_reward > 300:
                 suc_reward += episode_reward
@@ -255,5 +256,6 @@ if __name__ == '__main__':
         suc_reward /= success_rate
         success_rate /= args.test_eps
         avg_reward /= args.test_eps
-        with open(log_dir["test"] + 'test_result.txt', 'w') as f:
-            print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)
+        print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward, file=result_txt)
+        print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)
+        result_txt.close()
