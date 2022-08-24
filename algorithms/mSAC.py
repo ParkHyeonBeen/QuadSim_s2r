@@ -42,6 +42,11 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
     best_error = 100.
 
     while sac_trainer.worker_step < args.max_interaction:
+
+        if sac_trainer.worker_step == args.model_train_start_step:
+            env.random_ratio = 0.
+            load_model(sac_trainer.policy_net, model_path["policy"], "policy_best")
+
         # Episode start
         episode_reward = 0
         state = env.reset()
@@ -73,9 +78,6 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
 
             state = next_state
             episode_reward += reward
-
-            if sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
-                env.random_ratio = 0.
 
             # Update networks per step
             if sac_trainer.worker_step > args.random_action * args.num_worker:
