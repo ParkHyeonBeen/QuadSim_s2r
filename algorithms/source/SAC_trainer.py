@@ -177,20 +177,20 @@ class SAC_Trainer():
                                                 (transition["position_next_obs"] - transition["position_obs"])/self.env.sample_time,
                                                 transition["rotation_obs"],
                                                 (transition["rotation_next_obs"] - transition["rotation_obs"])/self.env.sample_time], axis=1)
-                next_network_state = np.concatenate([transition["position_next_obs"][:3],
-                                                     transition["rotation_next_obs"][:6]], axis=1)
-                prev_network_action = transition["action_obs"][self.env.action_dim:]
+                next_network_state = np.concatenate([transition["position_next_obs"][:, :3],
+                                                     transition["rotation_next_obs"][:, :6]], axis=1)
+                prev_network_action = transition["action_obs"][:, self.env.action_dim:]
 
                 # network_state, prev_network_action, next_network_state = get_model_net_input(self.env, transition, transition)
 
                 action = transition["action"]
 
                 network_state = torch.FloatTensor(network_state).to(device)
-                next_network_state = torch.FloatTensor(next_network_state).to(device)
                 prev_network_action = torch.FloatTensor(prev_network_action).to(device)
+                next_network_state = torch.FloatTensor(next_network_state).to(device)
                 action = torch.FloatTensor(action).to(device)
 
-                action_hat = self.inv_model_net(network_state, next_network_state, prev_network_action, train=args.train)
+                action_hat = self.inv_model_net(network_state, prev_network_action, next_network_state, train=args.train)
                 # if self.action_before is not None:
                 #     action_hat = self.action_before + 0.5 * (action_hat - self.action_before)
 
