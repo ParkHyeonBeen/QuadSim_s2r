@@ -44,7 +44,7 @@ parser.add_argument("--model_lr", default=3e-4, type=float, help="Learning rate 
 parser.add_argument("--inv_model_lr", default=3e-4, type=float, help="Learning rate for inverse model network update.")
 parser.add_argument('--model-kl-weight', default=0.00001, type=float)
 parser.add_argument('--inv-model-kl-weight', default=0.00001, type=float)
-parser.add_argument('--model_train_start_step', default=1.8e4, type=int)
+parser.add_argument('--model_train_start_step', default=2.0e7, type=int)
 
 # SAC
 parser.add_argument("--name", default="mSAC", type=str, help="Trained model is saved with this name.")
@@ -63,7 +63,7 @@ parser.add_argument("--dense_reward", default=True, type=bool, help="The use of 
 parser.add_argument("--AUTO_ENTROPY", default=True, type=bool, help="Training entrophy.")
 parser.add_argument("--hidden_dim", default=128, type=int, help="Network hidden state dimension.")
 
-parser.add_argument("--eval_frequency", default=10000, type=int, help="Evaluation frequency in the aspect of the number of agent local steps.")
+parser.add_argument("--eval_frequency", default=100000, type=int, help="Evaluation frequency in the aspect of the number of agent local steps.")
 parser.add_argument("--num_eval", default=10, type=int, help="The number of evaluations at once.")
 
 parser.add_argument("--buffer_size", default=3e6, type=int, help="Buffer size.")
