@@ -31,7 +31,7 @@ parser.add_argument("--develop-mode", "-dm", default='imn', type=str,
                          "mn_mrrl: model reference rl with model network,"
                          "imn    : inverse model network")
 parser.add_argument("--env-name", default='QuadRotor-v0', type=str, help="If True, run_train")
-parser.add_argument("--net-type", default='bnn', type=str, help="dnn, bnn")
+parser.add_argument("--net-type", default='dnn', type=str, help="dnn, bnn")
 
 # For test
 parser.add_argument("--test_eps", default=1000, type=int, help="The number of test episode using trained policy.")
@@ -44,7 +44,7 @@ parser.add_argument("--model_lr", default=3e-4, type=float, help="Learning rate 
 parser.add_argument("--inv_model_lr", default=3e-4, type=float, help="Learning rate for inverse model network update.")
 parser.add_argument('--model-kl-weight', default=0.00001, type=float)
 parser.add_argument('--inv-model-kl-weight', default=0.00001, type=float)
-parser.add_argument('--model_train_start_step', default=1.3e4, type=int)
+parser.add_argument('--model_train_start_step', default=2.0e7, type=int)
 
 # SAC
 parser.add_argument("--name", default="mSAC", type=str, help="Trained model is saved with this name.")
@@ -63,7 +63,7 @@ parser.add_argument("--dense_reward", default=True, type=bool, help="The use of 
 parser.add_argument("--AUTO_ENTROPY", default=True, type=bool, help="Training entrophy.")
 parser.add_argument("--hidden_dim", default=128, type=int, help="Network hidden state dimension.")
 
-parser.add_argument("--eval_frequency", default=10000, type=int, help="Evaluation frequency in the aspect of the number of agent local steps.")
+parser.add_argument("--eval_frequency", default=100000, type=int, help="Evaluation frequency in the aspect of the number of agent local steps.")
 parser.add_argument("--num_eval", default=10, type=int, help="The number of evaluations at once.")
 
 parser.add_argument("--buffer_size", default=3e6, type=int, help="Buffer size.")
@@ -85,7 +85,7 @@ parser.add_argument("--HER", default=False, type=bool, help="If True, replay buf
 
 # for environment
 parser.add_argument("--init_max_pbox", default=3., type=float, help="max initial position near goal")
-parser.add_argument("--init_max_ang", default=45, type=float, help="max initial degree angle for roll and pitch")
+parser.add_argument("--init_max_ang", default=90, type=float, help="max initial degree angle for roll and pitch")
 parser.add_argument("--init_max_vel", default=0.5, type=float, help="max initial velocity")
 parser.add_argument("--init_max_ang_vel", default=1.*np.pi, type=float, help="max initial angular velocity")
 parser.add_argument("--thrust_noise_sigma", default=0.05, type=float, help="motor noise scale")

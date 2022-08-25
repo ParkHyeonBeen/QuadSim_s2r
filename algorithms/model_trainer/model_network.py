@@ -231,22 +231,27 @@ class InverseModelNetwork(nn.Module):
             self.state_net = nn.Sequential(
                 nn.Linear(self.state_net_input, int(self.hidden_dim/2)),
                 # nn.Dropout(0.05),
-                nn.ReLU()
+                nn.ReLU(),
+                nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
+
             )
             self.prev_action_net = nn.Sequential(
                 nn.Linear(self.prev_action_net_input, int(self.hidden_dim / 2)),
                 # nn.Dropout(0.05),
-                nn.ReLU()
+                nn.ReLU(),
+                nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
             )
             self.middle_net = nn.Sequential(
                 nn.Linear(self.hidden_dim, int(self.hidden_dim / 2)),
                 # nn.Dropout(0.05),
-                nn.ReLU()
+                nn.ReLU(),
+                nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
             )
             self.next_state_net = nn.Sequential(
                 nn.Linear(self.next_state_net_input, int(self.hidden_dim/2)),
                 # nn.Dropout(0.05),
-                nn.ReLU()
+                nn.ReLU(),
+                nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
             )
             self.action_net = nn.Sequential(
                 nn.Linear(self.hidden_dim, self.hidden_dim),
