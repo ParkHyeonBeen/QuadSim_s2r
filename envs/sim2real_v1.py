@@ -60,7 +60,7 @@ class Sim2RealEnv(QuadRotorAsset):
         self.length = self.init_length * np.random.uniform(self.random_min, self.random_max)
         self.kt = self.init_kt * np.random.uniform(self.random_min, self.random_max)
         self.inertia = self.init_inertia * np.random.uniform(self.random_min, self.random_max)
-        self.lag_ratio = self.init_lag_ratio * np.random.uniform(0.4, 1.6)
+        self.lag_ratio = self.init_lag_ratio * np.random.uniform(self.random_min, self.random_max)
 
         # PID controller
         self.controller.set_state(self.state[:6], self.state[6:])

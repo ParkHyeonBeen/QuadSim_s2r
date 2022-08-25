@@ -43,7 +43,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
 
     while sac_trainer.worker_step < args.max_interaction:
 
-        if sac_trainer.worker_step == args.model_train_start_step:
+        if args.model_train_start_step <= sac_trainer.worker_step < args.model_train_start_step + args.episode_length:
             env.random_ratio = int(0)
             load_model(sac_trainer.policy_net, model_path["policy"], "policy_best")
 
