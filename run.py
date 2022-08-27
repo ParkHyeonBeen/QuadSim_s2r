@@ -85,11 +85,14 @@ parser.add_argument("--HER", default=False, type=bool, help="If True, replay buf
 
 # for environment
 parser.add_argument("--init_max_pbox", default=3., type=float, help="max initial position near goal")
-parser.add_argument("--init_max_ang", default=90, type=float, help="max initial degree angle for roll and pitch")
+parser.add_argument("--init_max_ang", default=45, type=float, help="max initial degree angle for roll and pitch")
 parser.add_argument("--init_max_vel", default=0.5, type=float, help="max initial velocity")
 parser.add_argument("--init_max_ang_vel", default=1.*np.pi, type=float, help="max initial angular velocity")
 parser.add_argument("--thrust_noise_sigma", default=0.05, type=float, help="motor noise scale")
 parser.add_argument("--step_size", default=0.005, type=float, help="RK4 step size")
+parser.add_argument("--lambda_t", default=1e-1, type=float, help="Temporal smoothness for policy loss")
+parser.add_argument("--lambda_s", default=5e-1, type=float, help="Spatial smoothness for policy loss")
+parser.add_argument("--eps_p", default=1e-1, type=float, help="Standard deviation for spatial smoothness")
 parser.add_argument("--quad_ver", default="v2", type=str, choices=["v1", "v2"], help="Quadrotor version, v1: 3d printed micro drone, v2: carbon mini drone")
 parser.add_argument("--lag_ratio", default=0.5, type=float, help="motor lag ratio for diff factor")
 parser.add_argument("--gravity", default=9.8066, type=float, help="")

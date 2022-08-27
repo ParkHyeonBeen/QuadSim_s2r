@@ -18,6 +18,9 @@ class SAC_Trainer():
         self.transition_model_type = args.transition_type
         self.discount = args.gamma
         self.env = env
+        self.lambda_t = args.lambda_t
+        self.lambda_s = args.lambda_s
+        self.eps_p = args.eps_p
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         action_dim = env.action_dim
@@ -108,12 +111,15 @@ class SAC_Trainer():
                                                 transition["velocity_error_next_obs"],
                                                 transition["rotation_next_obs"],
                                                 transition["angular_velocity_error_next_obs"]], axis=1)
+            random_network_state = np.random.normal(network_state, self.eps_p)
+
             reward = transition["reward"]
             done = transition["done"]
             action = transition["action"]
 
             network_state = torch.FloatTensor(network_state).to(device)
             next_network_state = torch.FloatTensor(next_network_state).to(device)
+            random_network_state = torch.FloatTensor(random_network_state).to(device)
             action = torch.FloatTensor(action).to(device)
             reward = torch.FloatTensor(reward).to(device)
             done = torch.FloatTensor(np.float32(done)).to(device)
@@ -122,6 +128,7 @@ class SAC_Trainer():
             predicted_q_value2 = self.soft_q_net2(network_state, action)
             new_action, log_prob, z, mean, log_std = self.policy_net.evaluate(network_state)
             new_next_action, next_log_prob, _, _, _ = self.policy_net.evaluate(next_network_state)
+            new_random_action, _, _, _, _ = self.policy_net.evaluate(random_network_state)
             # reward = reward_scale * (reward - reward.mean(dim=0)) / (reward.std(dim=0) + 1e-6) # normalize with batch mean and std; plus a small number to prevent numerical problem
 
             # Training Q Function
@@ -141,6 +148,10 @@ class SAC_Trainer():
             predicted_new_q_value = torch.min(self.soft_q_net1(network_state, new_action, detach_encoder=True),
                                               self.soft_q_net2(network_state, new_action, detach_encoder=True))
             policy_loss = (self.alpha.detach() * log_prob - predicted_new_q_value).mean()
+            policy_loss_t = torch.norm(new_action - new_next_action, dim=1).mean()
+            policy_loss_s = torch.norm(new_action - new_random_action, dim=1).mean()
+            policy_loss += self.lambda_t * policy_loss_t
+            policy_loss += self.lambda_s * policy_loss_s
 
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
