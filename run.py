@@ -24,7 +24,7 @@ parser.add_argument("--gpu", default=True, type=bool, help="If use gpu, True")
 parser.add_argument("--device-idx", default=0, type=int, help="a index about gpu device")
 
 # Main controller
-parser.add_argument("--train", default=True, type=bool, help="If True, run_train")
+parser.add_argument("--train", default="True", type=str2bool, help="If True, run_train")
 parser.add_argument("--develop-mode", "-dm", default='imn', type=str,
                     help="none   : only policy network,"
                          "mrrl   : model reference rl,"
@@ -36,7 +36,8 @@ parser.add_argument("--net-type", default='dnn', type=str, help="dnn, bnn")
 # For test
 parser.add_argument("--test_eps", default=1000, type=int, help="The number of test episode using trained policy.")
 parser.add_argument("--result_name", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
-parser.add_argument("--model_on", default=False, type=bool, help="if True, activate model network")
+parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
+
 
 # For train
 # ModelNet

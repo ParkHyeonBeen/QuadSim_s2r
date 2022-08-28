@@ -139,7 +139,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                         action = sac_trainer.policy_net.get_action(network_state, deterministic=args.train)
                         next_state, reward, done, success, _ = env.step(action)
 
-                        if sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
+                        if args.develop_mode == "imn" and sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
                             sac_trainer.inv_model_net.evals()
 
                             network_state, prev_network_action, next_network_state \
@@ -164,7 +164,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                 if best_score_tmp is not None:
                     best_score = best_score_tmp
 
-                if sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
+                if args.develop_mode == "imn" and sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
                     eval_error = np.mean([np.mean(episode_errors) for episode_errors in episodes_model_error], keepdims=True)
                     eval_data.put_data(eval_error)
                     best_error_tmp = save_model(sac_trainer.inv_model_net, best_error, eval_error[0],
