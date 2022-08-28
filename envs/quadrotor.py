@@ -78,7 +78,8 @@ class QuadRotorAsset():
         f3 : y-axis, positive, cw
         f4 : y-axis, negative, cw
         """
-        thrust = np.clip(thrust, 0.1*np.ones_like(thrust), 2.0*np.ones_like(thrust))
+        # thrust = np.clip(thrust, 0.1*np.ones_like(thrust), 2.0*np.ones_like(thrust))
+        # print(thrust)
         f1, f2, f3, f4 = thrust
         _, _, _, phi, tht, psi, x_dot, y_dot, z_dot, p, q, r = state.copy()
 

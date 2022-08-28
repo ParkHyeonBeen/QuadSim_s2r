@@ -1,6 +1,8 @@
 
 import argparse
 
+import numpy as np
+
 from algorithms.source.SAC_trainer import *
 from algorithms.source.replay_buffer import *
 from algorithms.mSAC import *
@@ -34,7 +36,7 @@ parser.add_argument("--env-name", default='QuadRotor-v0', type=str, help="If Tru
 parser.add_argument("--net-type", default='dnn', type=str, help="dnn, bnn")
 
 # For test
-parser.add_argument("--test_eps", default=1000, type=int, help="The number of test episode using trained policy.")
+parser.add_argument("--test_eps", default=100, type=int, help="The number of test episode using trained policy.")
 parser.add_argument("--result_name", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
 
@@ -186,6 +188,7 @@ if __name__ == '__main__':
     else:
         np.random.seed(77)
 
+        eval_test = DataManager()
         log_dir = load_log_directories(args.result_name)
         load_model(sac_trainer.policy_net, log_dir["policy"], "policy_best")
         if args.model_on:
@@ -212,19 +215,32 @@ if __name__ == '__main__':
             force = np.zeros(4)
             step = 0
             episode_model_error = []
+            dist = np.zeros(env.action_dim)
+            dist_before = np.zeros(env.action_dim)
 
             for step in range(args.episode_length):
                 network_state = np.concatenate([p, v, r, w])
-                action = sac_trainer.policy_net.get_action(network_state, deterministic=not args.train)
-                next_state, reward, done, success, f = env.step(action)
+                action = sac_trainer.policy_net.get_action(network_state, deterministic=True)
 
                 if args.model_on:
+                    action_dob = action - dist
+                    next_state, reward, done, success, f = env.step(action_dob)
+                    # print(next_state, reward, done, success, f)
+
                     sac_trainer.inv_model_net.evals()
                     network_state, prev_network_action, next_network_state \
                         = get_model_net_input(env, state, next_state)
                     action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
-                                                           next_network_state).detach().cpu().numpy()
-                    episode_model_error.append(np.sqrt(np.mean((action_hat - action) ** 2)))
+                                                           next_network_state).detach().cpu().numpy()[0]
+                    dist = action_hat - action
+                    dist = 0.2 * dist_before + 0.8*dist
+                    # eval_test.plot_data(dist)
+                    dist = np.clip(dist, -1.0, 1.0)
+                    # print(action_hat)
+                    episode_model_error.append(np.sqrt(np.mean(dist ** 2)))
+                    dist_before = dist.copy()
+                else:
+                    next_state, reward, done, success, f = env.step(action)
 
                 episode_reward += reward
                 state = next_state
@@ -249,7 +265,8 @@ if __name__ == '__main__':
                 if done or success:
                     break
 
-            # eval_plot(step, pos, vel, rpy, angvel, policy, force)
+            # if step == args.episode_length-1:
+            #     eval_plot(step, pos, vel, rpy, angvel, policy, force)
 
             print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error))
             print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error), file=result_txt)

@@ -15,6 +15,7 @@ class Sim2RealEnv(QuadRotorAsset):
         super(Sim2RealEnv, self).__init__(args=args)
 
         # self.env_render = gym.make("QuadRate-v0")
+        self.args = args
         self._reset_noise_scale = reset_noise_scale
         self.suc_cnt = 0
         self.drop_cnt = 0
@@ -46,7 +47,7 @@ class Sim2RealEnv(QuadRotorAsset):
         self.controller = PIDController(args)
 
     def reset(self):
-        self.local_step = 1
+        self.local_step = 0
 
         self.state = np.zeros(12)
         # Randomize initial states
@@ -69,10 +70,13 @@ class Sim2RealEnv(QuadRotorAsset):
         return obs
 
     def step(self, action_tanh):
+
+        self.local_step += 1
+
         # RL policy controller
         self.action_tanh = action_tanh
         f_hat = (action_tanh + 1) / 2
-        u_hat = np.sqrt(f_hat)  # rotor angular velocity
+        u_hat = np.sqrt(np.clip(f_hat, 0, 1))  # rotor angular velocity
 
         # motor lag
         u_hat = self.lag_ratio*(u_hat - self.u_hat) + self.u_hat
@@ -88,6 +92,9 @@ class Sim2RealEnv(QuadRotorAsset):
 
         # PID controller
         # f = self.controller.get_force(self.state, self._get_obs()[0])
+        #
+        if not self.args.train:
+            f = add_disturbance(f, fmax, self.local_step, self.args.episode_length, scale=0.0, frequency=4)
 
         self.do_simulation(f)
         new_obs, done = self._get_obs(mem_reset=False)

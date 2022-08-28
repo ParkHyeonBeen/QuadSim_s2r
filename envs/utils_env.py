@@ -158,15 +158,15 @@ def add_noise(val, scale=0.1):
     val += scale*np.random.normal(size=len(val))
     return val
 
-def add_disturbance(val, step, terminal_time, scale=0.1, frequency=4):
+def add_disturbance(val, max_val, step, terminal_time, scale=0.1, frequency=4):
     for i in range(len(val)):
-        val[i] += scale*math.sin((frequency*math.pi / terminal_time)*step)
+        val[i] += max_val*scale*math.sin((frequency*math.pi / terminal_time)*step)
 
-    if scale > 0.01:
+    if scale > 0.001:
         if type(val) is torch.Tensor:
-            val += 0.01*torch.normal(mean=torch.zeros_like(val), std=torch.ones_like(val))
+            val += 0.001*max_val*torch.normal(mean=torch.zeros_like(val), std=torch.ones_like(val))
         else:
-            val += 0.01*np.random.normal(size=len(val))
+            val += 0.001*max_val*np.random.normal(size=len(val))
 
     return val
 
