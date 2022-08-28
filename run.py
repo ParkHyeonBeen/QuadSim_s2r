@@ -197,88 +197,91 @@ if __name__ == '__main__':
             load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
         env = Sim2RealEnv(args=args)
 
-        success_rate = 0
-        avg_reward = 0
-        suc_reward = 0
-        result_txt = open(log_dir["test"] + '/test_result.txt', 'w')
-        for eps in range(args.test_eps):
-            state = env.reset()
-            episode_reward = 0
-            p = state["position_error_obs"]
-            v = state["velocity_error_obs"]
-            r = state["rotation_obs"]
-            w = state["angular_velocity_error_obs"]
-            a = state["action_obs"]
-            pos = p[:3]
-            vel = -v[:3]
-            rpy = np.array([math.atan2(r[0], r[1]), math.atan2(r[2], r[3]), math.atan2(r[4], r[5])])
-            angvel = -w[:3]
-            policy = a[:4]
-            force = np.zeros(4)
-            step = 0
-            episode_model_error = []
-            dist = np.zeros(env.action_dim)
-            dist_before = np.zeros(env.action_dim)
-
-            for step in range(args.episode_length):
-                network_state = np.concatenate([p, v, r, w])
-                action = sac_trainer.policy_net.get_action(network_state, deterministic=True)
-
-                if args.model_on:
-                    action_dob = action - dist
-                    next_state, reward, done, success, f = env.step(action_dob)
-                    # print(next_state, reward, done, success, f)
-
-                    sac_trainer.inv_model_net.evals()
-                    network_state, prev_network_action, next_network_state \
-                        = get_model_net_input(env, state, next_state)
-                    action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
-                                                           next_network_state).detach().cpu().numpy()[0]
-                    dist = action_hat - action
-                    dist = 0.2 * dist_before + 0.8*dist
-                    # eval_test.plot_data(dist)
-                    dist = np.clip(dist, -1.0, 1.0)
-                    # print(action_hat)
-                    episode_model_error.append(np.sqrt(np.mean(dist ** 2)))
-                    dist_before = dist.copy()
-                else:
-                    next_state, reward, done, success, f = env.step(action)
-
-                episode_reward += reward
-                state = next_state
-
-                # env.render()
-                time.sleep(0.001)
-
+        result_txt = open(log_dir["test"] + '/test_result_' + args.develop_mode + ".txt", 'w')
+        for i in np.linspace(0.0, 0.2, 21):
+            env.dist_scale = i
+            success_rate = 0
+            avg_reward = 0
+            suc_reward = 0
+            print("disturbance scale: ", i*100, " percent of max thrust", file=result_txt)
+            for eps in range(args.test_eps):
+                state = env.reset()
+                episode_reward = 0
                 p = state["position_error_obs"]
                 v = state["velocity_error_obs"]
                 r = state["rotation_obs"]
                 w = state["angular_velocity_error_obs"]
                 a = state["action_obs"]
+                pos = p[:3]
+                vel = -v[:3]
+                rpy = np.array([math.atan2(r[0], r[1]), math.atan2(r[2], r[3]), math.atan2(r[4], r[5])])
+                angvel = -w[:3]
+                policy = a[:4]
+                force = np.zeros(4)
+                step = 0
+                episode_model_error = []
+                dist = np.zeros(env.action_dim)
+                dist_before = np.zeros(env.action_dim)
 
-                pos = np.vstack((pos, p[:3]))
-                vel = np.vstack((vel, -v[:3]))
-                rpy = np.vstack(
-                    (rpy, np.array([math.atan2(r[0], r[1]), math.atan2(r[2], r[3]), math.atan2(r[4], r[5])])))
-                angvel = np.vstack((angvel, -w[:3]))
-                policy = np.vstack((policy, a[:4]))
-                force = np.vstack((force, f))
+                for step in range(args.episode_length):
+                    network_state = np.concatenate([p, v, r, w])
+                    action = sac_trainer.policy_net.get_action(network_state, deterministic=True)
 
-                if done or success:
-                    break
+                    if args.model_on:
+                        action_dob = action - dist
+                        next_state, reward, done, success, f = env.step(action_dob)
+                        # print(next_state, reward, done, success, f)
 
-            # if step == args.episode_length-1:
-            #     eval_plot(step, pos, vel, rpy, angvel, policy, force)
+                        sac_trainer.inv_model_net.evals()
+                        network_state, prev_network_action, next_network_state \
+                            = get_model_net_input(env, state, next_state)
+                        action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
+                                                               next_network_state).detach().cpu().numpy()[0]
+                        dist = action_hat - action
+                        dist = 0.2 * dist_before + 0.8*dist
+                        # eval_test.plot_data(dist)
+                        dist = np.clip(dist, -1.0, 1.0)
+                        # print(action_hat)
+                        episode_model_error.append(np.sqrt(np.mean(dist ** 2)))
+                        dist_before = dist.copy()
+                    else:
+                        next_state, reward, done, success, f = env.step(action)
 
-            print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error))
-            print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error), file=result_txt)
-            avg_reward += episode_reward
-            if episode_reward > 300:
-                suc_reward += episode_reward
-                success_rate += 1.
-        suc_reward /= success_rate
-        success_rate /= args.test_eps
-        avg_reward /= args.test_eps
-        print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward, file=result_txt)
-        print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)
+                    episode_reward += reward
+                    state = next_state
+
+                    # env.render()
+                    time.sleep(0.001)
+
+                    p = state["position_error_obs"]
+                    v = state["velocity_error_obs"]
+                    r = state["rotation_obs"]
+                    w = state["angular_velocity_error_obs"]
+                    a = state["action_obs"]
+
+                    pos = np.vstack((pos, p[:3]))
+                    vel = np.vstack((vel, -v[:3]))
+                    rpy = np.vstack(
+                        (rpy, np.array([math.atan2(r[0], r[1]), math.atan2(r[2], r[3]), math.atan2(r[4], r[5])])))
+                    angvel = np.vstack((angvel, -w[:3]))
+                    policy = np.vstack((policy, a[:4]))
+                    force = np.vstack((force, f))
+
+                    if done or success:
+                        break
+
+                # if step == args.episode_length-1:
+                #     eval_plot(step, pos, vel, rpy, angvel, policy, force)
+
+                print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error))
+                print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error), file=result_txt)
+                avg_reward += episode_reward
+                if episode_reward > 300:
+                    suc_reward += episode_reward
+                    success_rate += 1.
+            suc_reward /= success_rate
+            success_rate /= args.test_eps
+            avg_reward /= args.test_eps
+            print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward, file=result_txt)
+            print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)
         result_txt.close()

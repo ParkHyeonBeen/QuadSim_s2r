@@ -45,6 +45,7 @@ class Sim2RealEnv(QuadRotorAsset):
         self.thrust_noise = OUNoise(self.action_dim, sigma=self.thrust_noise_sigma)
 
         self.controller = PIDController(args)
+        self.dist_scale = 0.0
 
     def reset(self):
         self.local_step = 0
@@ -94,7 +95,7 @@ class Sim2RealEnv(QuadRotorAsset):
         # f = self.controller.get_force(self.state, self._get_obs()[0])
         #
         if not self.args.train:
-            f = add_disturbance(f, fmax, self.local_step, self.args.episode_length, scale=0.0, frequency=4)
+            f = add_disturbance(f, fmax, self.local_step, self.args.episode_length, scale=self.dist_scale, frequency=4)
 
         self.do_simulation(f)
         new_obs, done = self._get_obs(mem_reset=False)
