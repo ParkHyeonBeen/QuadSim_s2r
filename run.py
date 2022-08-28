@@ -144,7 +144,6 @@ if __name__ == '__main__':
         sac_trainer.target_soft_q_net1.share_memory()
         sac_trainer.target_soft_q_net2.share_memory()
         sac_trainer.policy_net.share_memory()
-        sac_trainer.inv_model_net.share_memory()
         sac_trainer.log_alpha.share_memory_()  # variable
         sac_trainer.worker_step.share_memory_()
         sac_trainer.update_step.share_memory_()
@@ -152,7 +151,10 @@ if __name__ == '__main__':
         share_parameters(sac_trainer.soft_q_optimizer)
         share_parameters(sac_trainer.policy_optimizer)
         share_parameters(sac_trainer.alpha_optimizer)
-        share_parameters(sac_trainer.imn_optimizer)
+
+        if args.develop_mode == "imn":
+            sac_trainer.inv_model_net.share_memory()
+            share_parameters(sac_trainer.imn_optimizer)
 
         rewards_queue = mp.Queue()  # used for get rewards from all processes and plot the curve
 
