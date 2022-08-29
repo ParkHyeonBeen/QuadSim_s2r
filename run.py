@@ -238,7 +238,7 @@ if __name__ == '__main__':
                         action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
                                                                next_network_state).detach().cpu().numpy()[0]
                         dist = action_hat - action
-                        dist = 0.2 * dist_before + 0.8*dist
+                        # dist = 0.2 * dist_before + 0.8*dist
                         # eval_test.plot_data(dist)
                         dist = np.clip(dist, -1.0, 1.0)
                         # print(action_hat)
