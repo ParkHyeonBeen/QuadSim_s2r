@@ -322,6 +322,13 @@ def save_policy(policy, score_best, score_now, alive_rate, path):
         torch.save(policy.state_dict(), path + "/policy_current")
 
 def load_model(network, path, fname):
-    network.load_state_dict(torch.load(path +'/' + fname))
+    if "bnn" in fname:
+        model_tmp = torch.load(path +'/' + fname)
+        for key in model_tmp.copy().keys():
+            if 'eps' in key:
+                del (model_tmp[key])
+        network.load_state_dict(model_tmp)
+    else:
+        network.load_state_dict(torch.load(path +'/' + fname))
     network.eval()
 
