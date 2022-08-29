@@ -279,7 +279,7 @@ if __name__ == '__main__':
                 if episode_reward > 300:
                     suc_reward += episode_reward
                     success_rate += 1.
-            suc_reward /= success_rate
+            suc_reward /= (success_rate+1)
             success_rate /= args.test_eps
             avg_reward /= args.test_eps
             print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward, file=result_txt)
