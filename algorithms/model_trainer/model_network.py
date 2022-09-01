@@ -210,8 +210,11 @@ class InverseModelNetwork(nn.Module):
         self.rotation_dim = env.rotation_dim
         self.hidden_dim = hidden_dim
 
-        self.state_net_input = (self.position_dim + self.rotation_dim)*2*self.args.n_history
-        self.next_state_net_input = self.position_dim + self.rotation_dim
+        # self.state_net_input = (self.position_dim + self.rotation_dim)*2*self.args.n_history
+        # self.next_state_net_input = self.position_dim + self.rotation_dim
+        self.state_net_input = env.state_dim*self.args.n_history
+        self.next_state_net_input = env.state_dim
+
         self.prev_action_net_input = self.action_dim * (self.args.n_history-1)
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
