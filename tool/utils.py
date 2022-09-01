@@ -10,14 +10,14 @@ import matplotlib.pyplot as plt
 sys.path.append(str(Path('utils.py').parent.absolute()))  # 절대 경로에 추가
 
 class DataManager:
-    def __init__(self, path_dim=2, data_name=None):
+    def __init__(self, data_name=None):
         self.data = None
+        self.xticks = []
         self.data_name = data_name
-        self.path_dim = path_dim
-        self.path_data = np.empty([1, path_dim])
 
     def init_data(self):
         self.data = None
+        self.xticks = []
 
     def put_data(self, obs):
         if self.data is None:
@@ -25,8 +25,8 @@ class DataManager:
         else:
             self.data = np.vstack((self.data, obs))
 
-    def put_path(self, obs):
-        self.path_data = np.vstack((self.path_data, obs[:3]))
+    def get_xticks(self, xtick):
+        self.xticks.append(str(xtick))
 
     def mean_data(self):
         mean_data = np.mean(self.data, axis=0)
@@ -45,32 +45,12 @@ class DataManager:
         plt.pause(0.0001)
         plt.cla()
 
-    def plot_path(self, obs, label=None):
-        self.put_path(obs)
-        if label is None:
-            plt.plot(self.path_data[:, i] for i in range(self.path_dim))
-        else:
-            plt.plot([self.path_data[:, i] for i in range(self.path_dim)], label=label)
-            plt.legend()
-        plt.show(block=False)
-        plt.pause(0.0001)
-        plt.cla()
-
     def save_data(self, path, fname, numpy=False):
-
         if numpy is False:
             df = pd.DataFrame(self.data)
             df.to_csv(path + fname + ".csv")
         else:
             df = np.array(self.data)
-            np.save(path + fname + ".npy", df)
-
-    def save_path(self, path, fname, numpy=False):
-        if numpy is False:
-            df = pd.DataFrame(self.data)
-            df.to_csv(path + fname + ".csv")
-        else:
-            df = np.array(self.path_data)
             np.save(path + fname + ".npy", df)
 
     def plot_fig(self, path):
@@ -82,7 +62,18 @@ class DataManager:
         # plt.show()
         plt.clf()
 
-    def plot_variance_fig(self, path):
+    def bar_fig(self, path):
+        clear_output(True)
+        plt.figure(figsize=(20, 5))
+        x = np.arange(len(self.data))
+        plt.bar(x, self.data.flatten())
+        plt.xticks(x, self.xticks)
+        plt.grid(True)
+        plt.savefig(path)
+        # plt.show()
+        plt.clf()
+
+    def plot_variance_fig(self, path, need_xticks=False):
         clear_output(True)
         plt.figure(figsize=(20, 5))
         mean_val = self.data[:, 0]
@@ -93,10 +84,11 @@ class DataManager:
         y2 = np.asarray(mean_val) - np.asarray(std_val)
         plt.fill_between(x, y1, y2, alpha=0.3)
         plt.grid(True)
+        if need_xticks:
+            plt.xticks(x, self.xticks)
         plt.savefig(path)
         # plt.show()
         plt.clf()
-
 
 def plot_fig(data, path):
     clear_output(True)
@@ -120,11 +112,6 @@ def plot_variance_fig(mean_val, std_val, path):
     plt.savefig(path)
     # plt.show()
     plt.clf()
-
-def get_mean_std_at_different_dim(data):
-
-    mean_list = []
-    std_list = []
 
 
 def eval_plot(step, pos, vel, rpy, angvel, policy, force):

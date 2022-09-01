@@ -1,5 +1,6 @@
 
 import argparse
+import time
 
 import numpy as np
 
@@ -39,6 +40,12 @@ parser.add_argument("--net_type", default='dnn', type=str, help="dnn, bnn")
 parser.add_argument("--test_eps", default=100, type=int, help="The number of test episode using trained policy.")
 parser.add_argument("--result_name", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
+parser.add_argument('--num_dist', '-dn', default=20, type=int, help='the number of disturbance in certain range')
+parser.add_argument('--add_to', '-ad', default='action', type=str, help='action, state')
+parser.add_argument('--max_dist_action', '-xda', default=0.2, type=float, help='max mag of dist for action')
+parser.add_argument('--min_dist_action', '-nda', default=0.0, type=float, help='min mag of dist for action')
+parser.add_argument('--max_dist_state', '-xds', default=2.0, type=float, help='max mag of dist for state')
+parser.add_argument('--min_dist_state', '-nds', default=0.0, type=float, help='min mag of dist for state')
 
 # For train
 # ModelNet
@@ -102,8 +109,6 @@ parser.add_argument("--tc", default=0.060, type=float, help="time constant betwe
 parser.add_argument("--alpha", default=2.5, type=float, help="disturbance")
 parser.add_argument("--delta", default=0.24, type=float, help="disturbance")
 parser.add_argument("--sigma", default=1000., type=float, help="disturbance")
-
-
 
 args = parser.parse_args()
 
@@ -189,7 +194,9 @@ if __name__ == '__main__':
     else:
         np.random.seed(77)
 
-        eval_test = DataManager()
+        eval_reward = DataManager()
+        eval_success = DataManager()
+
         log_dir = load_log_directories(args.result_name)
         load_model(sac_trainer.policy_net, log_dir["policy"], "policy_best")
         if args.model_on:
@@ -197,12 +204,31 @@ if __name__ == '__main__':
         env = Sim2RealEnv(args=args)
 
         result_txt = open(log_dir["test"] + '/test_result_' + args.develop_mode + ".txt", 'w')
-        for i in np.linspace(0.0, 2.0, 21):
-            # env.dist_scale = i
+
+        if args.add_to == "action":
+            min_dist = args.min_dist_action
+            max_dist = args.max_dist_action
+        else:
+            min_dist = args.min_dist_state
+            max_dist = args.max_dist_state
+
+        for dist_scale in np.linspace(min_dist, max_dist, args.num_dist+1):
+            if args.add_to == "action":
+                env.dist_scale = dist_scale
+                print("disturbance scale: ", dist_scale * 100, " percent of max thrust", file=result_txt)
+                print("disturbance scale: ", dist_scale * 100, " percent of max thrust")
+                eval_reward.get_xticks(dist_scale * 100)
+                eval_success.get_xticks(dist_scale * 100)
+            else:
+                print("standard deviation of state noise: ", dist_scale, file=result_txt)
+                print("standard deviation of state noise: ", dist_scale)
+                eval_reward.get_xticks(dist_scale)
+                eval_success.get_xticks(dist_scale)
+
             success_rate = 0
-            avg_reward = 0
+            reward_list = []
             suc_reward = 0
-            print("disturbance scale: ", i*100, " percent of max thrust", file=result_txt)
+
             for eps in range(args.test_eps):
                 state = env.reset()
                 episode_reward = 0
@@ -229,10 +255,10 @@ if __name__ == '__main__':
                     if args.model_on:
                         action_dob = action - dist
                         next_state, reward, done, success, f = env.step(action_dob)
-                        # print(next_state, reward, done, success, f)
 
-                        for k in next_state.keys():
-                            next_state[k] = np.random.normal(next_state[k], i)
+                        if args.add_to == "state":
+                            for k in next_state.keys():
+                                next_state[k] = np.random.normal(next_state[k], dist_scale)
 
                         sac_trainer.inv_model_net.evals()
                         network_state, prev_network_action, next_network_state \
@@ -240,23 +266,20 @@ if __name__ == '__main__':
                         action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
                                                                next_network_state).detach().cpu().numpy()[0]
                         dist = action_hat - action
-                        # dist = 0.2 * dist_before + 0.8*dist
-                        # eval_test.plot_data(dist)
                         dist = np.clip(dist, -1.0, 1.0)
-                        # print(action_hat)
                         episode_model_error.append(np.sqrt(np.mean(dist ** 2)))
                         dist_before = dist.copy()
                     else:
                         next_state, reward, done, success, f = env.step(action)
-
-                        for k in next_state.keys():
-                            next_state[k] = np.random.normal(next_state[k], i)
+                        if args.add_to == "state":
+                            for k in next_state.keys():
+                                next_state[k] = np.random.normal(next_state[k], dist_scale)
 
                     episode_reward += reward
                     state = next_state
 
                     # env.render()
-                    time.sleep(0.001)
+                    # time.sleep(0.001)
 
                     p = state["position_error_obs"]
                     v = state["velocity_error_obs"]
@@ -275,18 +298,27 @@ if __name__ == '__main__':
                     if done or success:
                         break
 
-                # if step == args.episode_length-1:
-                #     eval_plot(step, pos, vel, rpy, angvel, policy, force)
+                # when you want to know specific data
+                # eval_plot(step, pos, vel, rpy, angvel, policy, force)
 
                 print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error))
-                print('Episode: ', eps, '| Episode Reward: ', episode_reward, '| Episode Model error: ', np.mean(episode_model_error), file=result_txt)
-                avg_reward += episode_reward
+                reward_list.append(episode_reward)
                 if episode_reward > 300:
                     suc_reward += episode_reward
                     success_rate += 1.
-            suc_reward /= (success_rate+1)
+
+            if success_rate != 0:
+                suc_reward /= success_rate
+            else:
+                suc_reward = 0.
+
             success_rate /= args.test_eps
-            avg_reward /= args.test_eps
+            avg_reward = sum(reward_list) / args.test_eps
+            eval_reward.put_data((np.mean(reward_list), np.std(reward_list)))
+            eval_success.put_data(success_rate)
             print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward, file=result_txt)
             print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)
+
+        eval_reward.plot_variance_fig(log_dir["test"] + "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type, need_xticks=True)
+        eval_success.bar_fig(log_dir["test"] + "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type)
         result_txt.close()
