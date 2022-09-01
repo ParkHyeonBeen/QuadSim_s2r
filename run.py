@@ -203,7 +203,7 @@ if __name__ == '__main__':
             load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
         env = Sim2RealEnv(args=args)
 
-        result_txt = open(log_dir["test"] + '/test_result_' + args.develop_mode + ".txt", 'w')
+        result_txt = open(log_dir["test"] + "/test_result_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" + args.net_type + "_" + args.add_to + ".txt", 'w')
 
         if args.add_to == "action":
             min_dist = args.min_dist_action
@@ -212,7 +212,7 @@ if __name__ == '__main__':
             min_dist = args.min_dist_state
             max_dist = args.max_dist_state
 
-        for dist_scale in np.linspace(min_dist, max_dist, args.num_dist+1):
+        for dist_scale in np.round(np.linspace(min_dist, max_dist, args.num_dist+1), 3):
             if args.add_to == "action":
                 env.dist_scale = dist_scale
                 print("disturbance scale: ", dist_scale * 100, " percent of max thrust", file=result_txt)
@@ -315,10 +315,10 @@ if __name__ == '__main__':
             success_rate /= args.test_eps
             avg_reward = sum(reward_list) / args.test_eps
             eval_reward.put_data((np.mean(reward_list), np.std(reward_list)))
-            eval_success.put_data(success_rate)
+            eval_success.put_data(success_rate*100)
             print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward, file=result_txt)
             print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)
 
-        eval_reward.plot_variance_fig(log_dir["test"] + "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type, need_xticks=True)
-        eval_success.bar_fig(log_dir["test"] + "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type)
+        eval_reward.plot_variance_fig(log_dir["test"] + "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to, need_xticks=True)
+        eval_success.bar_fig(log_dir["test"] + "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
         result_txt.close()
