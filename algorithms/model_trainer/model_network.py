@@ -230,9 +230,9 @@ class InverseModelNetwork(nn.Module):
         if self.net_type == "dnn":
             self.state_net = nn.Sequential(
                 nn.Linear(self.state_net_input, int(self.hidden_dim/2)),
-                nn.Dropout(0.05),
+                # nn.Dropout(0.05),
                 nn.ReLU(),
-                nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
+                # nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
 
             )
             self.prev_action_net = nn.Sequential(
@@ -333,14 +333,12 @@ class InverseModelNetwork(nn.Module):
         # Tensorlizing
         out = _format(self.device, state, prev_action, next_state)
 
-        # To normalize(-1~1) input data by using the softsign fcn
         state = self.state_net(out[0])
         prev_action = self.prev_action_net(out[1])
 
         middle = self.middle_net(torch.cat([state, prev_action], dim=-1))
         next_state = self.next_state_net(out[2])
 
-        # Testing data has 1 dim date(vector), so we should remove dim=1
         action = torch.tanh(self.action_net(torch.cat([middle, next_state], dim=-1)))
         return action
 

@@ -21,25 +21,24 @@ from multiprocessing.managers import BaseManager
 parser = argparse.ArgumentParser(description="QuadSim_mSAC")
 
 # Base
-parser.add_argument("--base-path", default="/home/phb/ETRI/QuadSim_s2r/", type=str, help="base path of the current project")
+parser.add_argument("--base_path", default="/home/phb/ETRI/QuadSim_s2r/", type=str, help="base path of the current project")
 parser.add_argument("--gpu", default=True, type=bool, help="If use gpu, True")
-parser.add_argument("--device-idx", default=0, type=int, help="a index about gpu device")
+parser.add_argument("--device_idx", default=0, type=int, help="a index about gpu device")
 
 # Main controller
 parser.add_argument("--train", default="True", type=str2bool, help="If True, run_train")
-parser.add_argument("--develop-mode", "-dm", default='imn', type=str,
+parser.add_argument("--develop_mode", "-dm", default='imn', type=str,
                     help="none   : only policy network,"
                          "mrrl   : model reference rl,"
                          "mn_mrrl: model reference rl with model network,"
                          "imn    : inverse model network")
-parser.add_argument("--env-name", default='QuadRotor-v0', type=str, help="If True, run_train")
-parser.add_argument("--net-type", default='dnn', type=str, help="dnn, bnn")
+parser.add_argument("--env_name", default='QuadRotor-v0', type=str, help="If True, run_train")
+parser.add_argument("--net_type", default='dnn', type=str, help="dnn, bnn")
 
 # For test
 parser.add_argument("--test_eps", default=100, type=int, help="The number of test episode using trained policy.")
 parser.add_argument("--result_name", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
-
 
 # For train
 # ModelNet
@@ -198,8 +197,8 @@ if __name__ == '__main__':
         env = Sim2RealEnv(args=args)
 
         result_txt = open(log_dir["test"] + '/test_result_' + args.develop_mode + ".txt", 'w')
-        for i in np.linspace(0.0, 0.2, 21):
-            env.dist_scale = i
+        for i in np.linspace(0.0, 2.0, 21):
+            # env.dist_scale = i
             success_rate = 0
             avg_reward = 0
             suc_reward = 0
@@ -232,6 +231,9 @@ if __name__ == '__main__':
                         next_state, reward, done, success, f = env.step(action_dob)
                         # print(next_state, reward, done, success, f)
 
+                        for k in next_state.keys():
+                            next_state[k] = np.random.normal(next_state[k], i)
+
                         sac_trainer.inv_model_net.evals()
                         network_state, prev_network_action, next_network_state \
                             = get_model_net_input(env, state, next_state)
@@ -246,6 +248,9 @@ if __name__ == '__main__':
                         dist_before = dist.copy()
                     else:
                         next_state, reward, done, success, f = env.step(action)
+
+                        for k in next_state.keys():
+                            next_state[k] = np.random.normal(next_state[k], i)
 
                     episode_reward += reward
                     state = next_state
