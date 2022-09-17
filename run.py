@@ -261,8 +261,14 @@ if __name__ == '__main__':
                                 next_state[k] = np.random.normal(next_state[k], dist_scale)
 
                         sac_trainer.inv_model_net.evals()
-                        network_state, prev_network_action, next_network_state \
-                            = get_model_net_input(env, state, next_state)
+                        # network_state, prev_network_action, next_network_state \
+                        #     = get_model_net_input(env, state, next_state)
+                        next_network_state = np.concatenate([next_state["position_error_obs"][:3],
+                                                             next_state["velocity_error_obs"][:3],
+                                                            next_state["rotation_obs"][:6],
+                                                            next_state["angular_velocity_error_obs"][:3]])
+                        prev_network_action = state["action_obs"][4:]
+
                         action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
                                                                next_network_state).detach().cpu().numpy()[0]
                         dist = action_hat - action

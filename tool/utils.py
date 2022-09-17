@@ -41,9 +41,7 @@ class DataManager:
         else:
             plt.plot(self.data, label=label)
             plt.legend()
-        plt.show(block=False)
-        plt.pause(0.0001)
-        plt.cla()
+
 
     def save_data(self, path, fname, numpy=False):
         if numpy is False:
