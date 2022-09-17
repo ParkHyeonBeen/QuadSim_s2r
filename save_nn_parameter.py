@@ -5,7 +5,7 @@ import torch
 
 parser = argparse.ArgumentParser(description="QuadSim_save_param")
 parser.add_argument("--base-path", default="/home/phb/ETRI/QuadSim_s2r/results/", type=str, help="base path of the current project")
-parser.add_argument("--result-name", default="0828-1927QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
+parser.add_argument("--result-name", default="0902-1753QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
 parser.add_argument("--which_model", default="both", type=str, help="both: policy and model"
                                                                     "policy: only policy"
                                                                     "policy: only model")
