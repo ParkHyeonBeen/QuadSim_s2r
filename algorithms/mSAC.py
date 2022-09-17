@@ -142,8 +142,14 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                         if args.develop_mode == "imn" and sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
                             sac_trainer.inv_model_net.evals()
 
-                            network_state, prev_network_action, next_network_state \
-                                = get_model_net_input(env, state, next_state)
+                            # network_state, prev_network_action, next_network_state \
+                            #     = get_model_net_input(env, state, next_state)
+
+                            next_network_state = np.concatenate([next_state["position_error_obs"][:3],
+                                                            next_state["velocity_error_obs"][:3],
+                                                            next_state["rotation_obs"][:6],
+                                                            next_state["angular_velocity_error_obs"][:3]])
+                            prev_network_action = state["action_obs"][env.action_dim:]
 
                             action_hat = sac_trainer.inv_model_net(network_state, prev_network_action, next_network_state).detach().cpu().numpy()
                             episode_model_error.append(np.sqrt(np.mean((action_hat - action)**2)))
