@@ -35,6 +35,8 @@ parser.add_argument("--develop_mode", "-dm", default='imn', type=str,
                          "imn    : inverse model network")
 parser.add_argument("--env_name", default='QuadRotor-v0', type=str, help="If True, run_train")
 parser.add_argument("--net_type", default='dnn', type=str, help="dnn, bnn")
+parser.add_argument("--develop_version", default=1, type=int, help="0 : network state is same with policy network state"
+                                                                   "others :  network state is different with policy network state")
 
 # For test
 parser.add_argument("--test_eps", default=100, type=int, help="The number of test episode using trained policy.")
@@ -42,7 +44,7 @@ parser.add_argument("--result_name", default="0824-1306QuadRotor-v0", type=str, 
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
 parser.add_argument('--num_dist', '-dn', default=20, type=int, help='the number of disturbance in certain range')
 parser.add_argument('--add_to', '-ad', default='action', type=str, help='action, state')
-parser.add_argument('--max_dist_action', '-xda', default=0.2, type=float, help='max mag of dist for action')
+parser.add_argument('--max_dist_action', '-xda', default=0.4, type=float, help='max mag of dist for action')
 parser.add_argument('--min_dist_action', '-nda', default=0.0, type=float, help='min mag of dist for action')
 parser.add_argument('--max_dist_state', '-xds', default=2.0, type=float, help='max mag of dist for state')
 parser.add_argument('--min_dist_state', '-nds', default=0.0, type=float, help='min mag of dist for state')
@@ -261,20 +263,14 @@ if __name__ == '__main__':
                                 next_state[k] = np.random.normal(next_state[k], dist_scale)
 
                         sac_trainer.inv_model_net.evals()
-                        # network_state, prev_network_action, next_network_state \
-                        #     = get_model_net_input(env, state, next_state)
-                        next_network_state = np.concatenate([next_state["position_error_obs"][:3],
-                                                             next_state["velocity_error_obs"][:3],
-                                                            next_state["rotation_obs"][:6],
-                                                            next_state["angular_velocity_error_obs"][:3]])
-                        prev_network_action = state["action_obs"][4:]
+                        network_state, prev_network_action, next_network_state \
+                            = get_model_net_input(env, state, next_state=next_state, ver=args.develop_version)
 
                         action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
                                                                next_network_state).detach().cpu().numpy()[0]
                         dist = action_hat - action
                         dist = np.clip(dist, -1.0, 1.0)
                         episode_model_error.append(np.sqrt(np.mean(dist ** 2)))
-                        dist_before = dist.copy()
                     else:
                         next_state, reward, done, success, f = env.step(action)
                         if args.add_to == "state":
@@ -326,5 +322,7 @@ if __name__ == '__main__':
             print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)
 
         eval_reward.plot_variance_fig(log_dir["test"] + "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to, need_xticks=True)
+        eval_reward.save_data(log_dir["test"], "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
         eval_success.bar_fig(log_dir["test"] + "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
+        eval_success.save_data(log_dir["test"], "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
         result_txt.close()

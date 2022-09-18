@@ -210,10 +210,13 @@ class InverseModelNetwork(nn.Module):
         self.rotation_dim = env.rotation_dim
         self.hidden_dim = hidden_dim
 
-        # self.state_net_input = (self.position_dim + self.rotation_dim)*2*self.args.n_history
-        # self.next_state_net_input = self.position_dim + self.rotation_dim
-        self.state_net_input = env.state_dim*self.args.n_history
-        self.next_state_net_input = env.state_dim
+        if args.develop_version == 1:
+            self.state_net_input = (self.position_dim + self.rotation_dim) * 2 * self.args.n_history
+            self.next_state_net_input = self.position_dim + self.rotation_dim
+        else:
+            self.state_net_input = env.state_dim*self.args.n_history
+            self.next_state_net_input = env.state_dim\
+
 
         self.prev_action_net_input = self.action_dim * (self.args.n_history-1)
 

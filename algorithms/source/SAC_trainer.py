@@ -184,24 +184,9 @@ class SAC_Trainer():
             if args.develop_mode == "imn":
                 transition = self.replay_buffer.get_batch(64)
                 self.inv_model_net.trains()
-                # network_state = np.concatenate([transition["position_obs"],
-                #                                 (transition["position_next_obs"] - transition["position_obs"])/self.env.sample_time,
-                #                                 transition["rotation_obs"],
-                #                                 (transition["rotation_next_obs"] - transition["rotation_obs"])/self.env.sample_time], axis=1)
-                # next_network_state = np.concatenate([transition["position_next_obs"][:, :3],
-                #                                      transition["rotation_next_obs"][:, :6]], axis=1)
-                prev_network_action = transition["action_obs"][:, self.env.action_dim:]
 
+                network_state, prev_network_action, next_network_state = get_model_net_input(self.env, transition, ver=args.develop_version)
                 action = transition["action"]
-
-                network_state = np.concatenate([transition["position_error_obs"],
-                                                transition["velocity_error_obs"],
-                                                transition["rotation_obs"],
-                                                transition["angular_velocity_error_obs"]], axis=1)
-                next_network_state = np.concatenate([transition["position_error_next_obs"][:, :3],
-                                                     transition["velocity_error_next_obs"][:, :3],
-                                                     transition["rotation_next_obs"][:, :6],
-                                                     transition["angular_velocity_error_next_obs"][:, :3]], axis=1)
 
                 network_state = torch.FloatTensor(network_state).to(device)
                 prev_network_action = torch.FloatTensor(prev_network_action).to(device)

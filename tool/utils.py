@@ -53,27 +53,29 @@ class DataManager:
 
     def plot_fig(self, path):
         clear_output(True)
-        plt.figure(figsize=(20, 5))
+        f = plt.figure(figsize=(20,5))
         plt.plot(np.arange(len(self.data)), self.data)
         plt.grid(True)
         plt.savefig(path)
         # plt.show()
-        plt.clf()
+        f.clf()
+        plt.close(f)
 
     def bar_fig(self, path):
         clear_output(True)
-        plt.figure(figsize=(20, 5))
+        f = plt.figure(figsize=(20,5))
         x = np.arange(len(self.data))
         plt.bar(x, self.data.flatten())
         plt.xticks(x, self.xticks)
         plt.grid(True)
         plt.savefig(path)
         # plt.show()
-        plt.clf()
+        f.clf()
+        plt.close(f)
 
     def plot_variance_fig(self, path, need_xticks=False):
         clear_output(True)
-        plt.figure(figsize=(20, 5))
+        f = plt.figure(figsize=(20,5))
         mean_val = self.data[:, 0]
         std_val = self.data[:, 1]
         x = range(len(mean_val))
@@ -86,21 +88,23 @@ class DataManager:
             plt.xticks(x, self.xticks)
         plt.savefig(path)
         # plt.show()
-        plt.clf()
+        f.clf()
+        plt.close(f)
 
 def plot_fig(data, path):
     clear_output(True)
-    plt.figure(figsize=(20, 5))
+    f = plt.figure(figsize=(20,5))
     x = range(len(data))
     plt.plot(x, data)
     plt.grid(True)
     plt.savefig(path)
     # plt.show()
-    plt.clf()
+    f.clf()
+    plt.close(f)
 
 def plot_variance_fig(mean_val, std_val, path):
     clear_output(True)
-    plt.figure(figsize=(20, 5))
+    f = plt.figure(figsize=(20,5))
     x = range(len(mean_val))
     plt.plot(x, mean_val)
     y1 = np.asarray(mean_val) + np.asarray(std_val)
@@ -109,11 +113,12 @@ def plot_variance_fig(mean_val, std_val, path):
     plt.grid(True)
     plt.savefig(path)
     # plt.show()
-    plt.clf()
-
+    f.clf()
+    plt.close(f)
 
 def eval_plot(step, pos, vel, rpy, angvel, policy, force):
     plt.clf()
+    plt.close()
     clear_output(True)
     step = np.array(range(step+2))
     rpy = rpy * 180 / math.pi

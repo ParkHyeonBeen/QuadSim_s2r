@@ -8,15 +8,45 @@ from tool.utils import *
 #     else:
 #         torch.save(network.state_dict(), path + fname)
 
-def get_model_net_input(env, state, next_state):
+def get_model_net_input(env, state, next_state=None, ver=0):
+    # "next_state is None" means Train mode
 
-    network_state = np.concatenate([state["position_obs"],
-                                    (next_state["position_obs"] - state["position_obs"]) / env.sample_time,
-                                    state["rotation_obs"],
-                                    (next_state["rotation_obs"] - state["rotation_obs"]) / env.sample_time], axis=-1)
-    next_network_state = np.concatenate([next_state["position_obs"][:3],
-                                         next_state["rotation_obs"][:6]], axis=-1)
-    prev_network_action = state["action_obs"][env.action_dim:]
+    if ver == 1:
+        if next_state is None:
+            network_state = np.concatenate([state["position_obs"],
+                                            (state["position_next_obs"] - state["position_obs"])/env.sample_time,
+                                            state["rotation_obs"],
+                                            (state["rotation_next_obs"] - state["rotation_obs"])/env.sample_time], axis=1)
+            next_network_state = np.concatenate([state["position_next_obs"][:, :3],
+                                                 state["rotation_next_obs"][:, :6]], axis=1)
+            prev_network_action = state["action_obs"][:, env.action_dim:]
+        else:
+            network_state = np.concatenate([state["position_obs"],
+                                            (next_state["position_obs"] - state["position_obs"]) / env.sample_time,
+                                            state["rotation_obs"],
+                                            (next_state["rotation_obs"] - state["rotation_obs"]) / env.sample_time], axis=-1)
+            next_network_state = np.concatenate([next_state["position_obs"][:3],
+                                                 next_state["rotation_obs"][:6]], axis=-1)
+            prev_network_action = state["action_obs"][env.action_dim:]
+
+    else:
+        if next_state is None:
+            network_state = np.concatenate([state["position_error_obs"],
+                                            state["velocity_error_obs"],
+                                            state["rotation_obs"],
+                                            state["angular_velocity_error_obs"]], axis=1)
+            next_network_state = np.concatenate([state["position_error_next_obs"][:, :3],
+                                                 state["velocity_error_next_obs"][:, :3],
+                                                 state["rotation_next_obs"][:, :6],
+                                                 state["angular_velocity_error_next_obs"][:, :3]], axis=1)
+            prev_network_action = state["action_obs"][:, env.action_dim:]
+        else:
+            network_state = None
+            next_network_state = np.concatenate([next_state["position_error_obs"][:3],
+                                                 next_state["velocity_error_obs"][:3],
+                                                next_state["rotation_obs"][:6],
+                                                next_state["angular_velocity_error_obs"][:3]])
+            prev_network_action = state["action_obs"][env.action_dim:]
 
     return network_state, prev_network_action, next_network_state
 
