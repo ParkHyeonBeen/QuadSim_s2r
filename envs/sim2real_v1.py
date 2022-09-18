@@ -10,16 +10,19 @@ class Sim2RealEnv(QuadRotorAsset):
             self,
             args,
             reset_noise_scale=0.1
-
     ):
         super(Sim2RealEnv, self).__init__(args=args)
 
-        # self.env_render = gym.make("QuadRate-v0")
+        self.env_render = gym.make("QuadRotor-v0")
+        self.env_render.reset()
         self.args = args
         self._reset_noise_scale = reset_noise_scale
         self.suc_cnt = 0
         self.drop_cnt = 0
-        self.goal = np.array([0., 0., 2.])
+        if self.args.train:
+            self.goal = np.array([0., 0., 2.])
+        else:
+            self.goal = np.array(args.set_goal)
         self.init_max_pbox = args.init_max_pbox
         self.init_max_ang = args.init_max_ang
         self.init_max_vel = args.init_max_vel
@@ -49,20 +52,39 @@ class Sim2RealEnv(QuadRotorAsset):
 
     def reset(self):
         self.local_step = 0
-
         self.state = np.zeros(12)
-        # Randomize initial states
-        self.state[:3] = self.goal + np.random.uniform(-self.init_max_pbox, self.init_max_pbox, 3) / np.array([1, 1, 2])
-        self.state[3:6] = np.random.uniform(-np.pi, np.pi, 3) / np.array([180/self.init_max_ang, 180/self.init_max_ang, 1])
-        self.state[6:9] = np.random.uniform(-self.init_max_vel, self.init_max_vel, 3)
-        self.state[9:] = np.random.uniform(-self.init_max_ang_vel, self.init_max_ang_vel, 3)
 
-        # Randomize parameter of the quadrotor
-        self.mass = self.init_mass * np.random.uniform(self.random_min, self.random_max)
-        self.length = self.init_length * np.random.uniform(self.random_min, self.random_max)
-        self.kt = self.init_kt * np.random.uniform(self.random_min, self.random_max)
-        self.inertia = self.init_inertia * np.random.uniform(self.random_min, self.random_max)
-        self.lag_ratio = self.init_lag_ratio * np.random.uniform(self.random_min, self.random_max)
+        if not self.args.train:
+            # Randomize initial states
+            self.state[:3] = self.goal + self.init_max_pbox * (np.random.randint(2, size=3)*2 - 1) / np.array(
+                [1, 1, 2])
+            if self.args.set_path == 'sine':
+                self.init_pos = self.state[:3].copy()
+
+            self.state[3:6] = np.pi*(np.random.randint(2, size=3)*2 - 1)/ np.array(
+                [180 / self.init_max_ang, 180 / self.init_max_ang, 1])
+            self.state[6:9] = self.init_max_vel*(np.random.randint(2, size=3)*2 - 1)
+            self.state[9:] = self.init_max_ang_vel*(np.random.randint(2, size=3)*2 - 1)
+
+            # Randomize parameter of the quadrotor
+            self.mass = self.init_mass * np.random.choice([self.random_min, self.random_max])
+            self.length = self.init_length * np.random.choice([self.random_min, self.random_max])
+            self.kt = self.init_kt * np.random.choice([self.random_min, self.random_max])
+            self.inertia = self.init_inertia * np.random.choice([self.random_min, self.random_max])
+            self.lag_ratio = self.init_lag_ratio * np.random.choice([self.random_min, self.random_max])
+        else:
+            # Randomize initial states
+            self.state[:3] = self.goal + np.random.uniform(-self.init_max_pbox, self.init_max_pbox, 3) / np.array([1, 1, 2])
+            self.state[3:6] = np.random.uniform(-np.pi, np.pi, 3) / np.array([180/self.init_max_ang, 180/self.init_max_ang, 1])
+            self.state[6:9] = np.random.uniform(-self.init_max_vel, self.init_max_vel, 3)
+            self.state[9:] = np.random.uniform(-self.init_max_ang_vel, self.init_max_ang_vel, 3)
+
+            # Randomize parameter of the quadrotor
+            self.mass = self.init_mass * np.random.uniform(self.random_min, self.random_max)
+            self.length = self.init_length * np.random.uniform(self.random_min, self.random_max)
+            self.kt = self.init_kt * np.random.uniform(self.random_min, self.random_max)
+            self.inertia = self.init_inertia * np.random.uniform(self.random_min, self.random_max)
+            self.lag_ratio = self.init_lag_ratio * np.random.uniform(self.random_min, self.random_max)
 
         # PID controller
         self.controller.set_state(self.state[:6], self.state[6:])
@@ -73,6 +95,8 @@ class Sim2RealEnv(QuadRotorAsset):
     def step(self, action_tanh):
 
         self.local_step += 1
+        if self.local_step % 5 == 0:
+            self._make_path()
 
         # RL policy controller
         self.action_tanh = action_tanh
@@ -317,6 +341,19 @@ class Sim2RealEnv(QuadRotorAsset):
             error_state = np.concatenate([err_xyz, err_xyz_vel, err_ang_vel])
 
         return error_state
+
+    def _make_path(self, radius=2.):
+        if self.args.set_path == 'circle':
+            self.goal[0] = radius * math.cos((2*math.pi / self.args.episode_length) * self.local_step)
+            self.goal[1] = radius * math.sin((2*math.pi / self.args.episode_length) * self.local_step)
+
+        if self.args.set_path == 'helix':
+            self.goal[0] = radius * math.cos((2*math.pi / self.args.episode_length) * self.local_step)
+            self.goal[1] = radius * math.sin((2*math.pi / self.args.episode_length) * self.local_step)
+            self.goal[2] = 5 * (self.local_step / self.args.episode_length)
+
+        if self.args.set_path == 'sine':
+            pass
 
     """ relted to render """
 

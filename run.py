@@ -35,13 +35,19 @@ parser.add_argument("--develop_mode", "-dm", default='imn', type=str,
                          "imn    : inverse model network")
 parser.add_argument("--env_name", default='QuadRotor-v0', type=str, help="If True, run_train")
 parser.add_argument("--net_type", default='dnn', type=str, help="dnn, bnn")
-parser.add_argument("--develop_version", default=1, type=int, help="0 : network state is same with policy network state"
+parser.add_argument("--develop_version", default=0, type=int, help="0 : network state is same with policy network state"
                                                                    "others :  network state is different with policy network state")
 
 # For test
 parser.add_argument("--test_eps", default=100, type=int, help="The number of test episode using trained policy.")
+parser.add_argument("--render", default="True", type=str2bool)
 parser.add_argument("--result_name", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
+parser.add_argument("--set_goal", default=[0., 0., 2.], help="set goal")
+parser.add_argument("--set_path", default="none", type=str, help="none, circle, sinewave")
+parser.add_argument("--test_mode", '-tm', default="disturbance", type=str, help="disturbancce, uncertainty")
+
+## For disturbance
 parser.add_argument('--num_dist', '-dn', default=20, type=int, help='the number of disturbance in certain range')
 parser.add_argument('--add_to', '-ad', default='action', type=str, help='action, state')
 parser.add_argument('--max_dist_action', '-xda', default=0.4, type=float, help='max mag of dist for action')
@@ -81,7 +87,7 @@ parser.add_argument("--buffer_size", default=3e6, type=int, help="Buffer size.")
 parser.add_argument("--batch_size", default=128, type=int, help="Batch size.")
 parser.add_argument("--future_p", default=0.7, type=float, help="The probability of replacing goals for a sample.")
 
-parser.add_argument("--random_ratio", default=0.05, type=float, help="Random ratio for quadrotor parameter.")
+parser.add_argument("--random_ratio", '-rr', default=0.05, type=float, help="Random ratio for quadrotor parameter.")
 parser.add_argument("--update_iter", default=1, type=int, help="Update iteration for one step.")
 parser.add_argument("--pol_lr", default=3e-4, type=float, help="Learning rate for actor (policy) update.")
 parser.add_argument("--val_lr", default=3e-4, type=float, help="Learning rate for critic (Q, V) update.")
@@ -95,10 +101,10 @@ parser.add_argument("--restore", default=False, type=bool, help="If True, pre-tr
 parser.add_argument("--HER", default=False, type=bool, help="If True, replay buffer is applied HER.")
 
 # for environment
-parser.add_argument("--init_max_pbox", default=3., type=float, help="max initial position near goal")
-parser.add_argument("--init_max_ang", default=45, type=float, help="max initial degree angle for roll and pitch")
-parser.add_argument("--init_max_vel", default=0.5, type=float, help="max initial velocity")
-parser.add_argument("--init_max_ang_vel", default=1.*np.pi, type=float, help="max initial angular velocity")
+parser.add_argument("--init_max_pbox", '-ip', default=3., type=float, help="max initial position near goal")
+parser.add_argument("--init_max_ang", '-ia', default=45, type=float, help="max initial degree angle for roll and pitch")
+parser.add_argument("--init_max_vel", '-iv', default=0.5, type=float, help="max initial velocity")
+parser.add_argument("--init_max_ang_vel", '-iav', default=1.*np.pi, type=float, help="max initial angular velocity")
 parser.add_argument("--thrust_noise_sigma", default=0.05, type=float, help="motor noise scale")
 parser.add_argument("--step_size", default=0.005, type=float, help="RK4 step size")
 parser.add_argument("--lambda_t", default=1e-1, type=float, help="Temporal smoothness for policy loss")
@@ -279,9 +285,8 @@ if __name__ == '__main__':
 
                     episode_reward += reward
                     state = next_state
-
-                    # env.render()
-                    # time.sleep(0.001)
+                    if args.render:
+                        env.render()
 
                     p = state["position_error_obs"]
                     v = state["velocity_error_obs"]
@@ -322,7 +327,7 @@ if __name__ == '__main__':
             print('Success rate: ', success_rate*100, '| Average Reward: ', avg_reward, '| Success Reward: ',suc_reward)
 
         eval_reward.plot_variance_fig(log_dir["test"] + "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to, need_xticks=True)
-        eval_reward.save_data(log_dir["test"], "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
+        eval_reward.save_data(log_dir["test"], "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to, numpy=True)
         eval_success.bar_fig(log_dir["test"] + "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
-        eval_success.save_data(log_dir["test"], "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
+        eval_success.save_data(log_dir["test"], "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to, numpy=True)
         result_txt.close()
