@@ -35,12 +35,12 @@ parser.add_argument("--develop_mode", "-dm", default='imn', type=str,
                          "imn    : inverse model network")
 parser.add_argument("--env_name", default='QuadRotor-v0', type=str, help="If True, run_train")
 parser.add_argument("--net_type", default='dnn', type=str, help="dnn, bnn")
-parser.add_argument("--develop_version", default=0, type=int, help="0 : network state is same with policy network state"
+parser.add_argument("--develop_version", '-dv', default=0, type=int, help="0 : network state is same with policy network state"
                                                                    "others :  network state is different with policy network state")
 
 # For test
 parser.add_argument("--test_eps", default=100, type=int, help="The number of test episode using trained policy.")
-parser.add_argument("--render", default="True", type=str2bool)
+parser.add_argument("--render", default="False", type=str2bool)
 parser.add_argument("--result_name", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
 parser.add_argument("--set_goal", default=[0., 0., 2.], help="set goal")
@@ -269,11 +269,16 @@ if __name__ == '__main__':
                                 next_state[k] = np.random.normal(next_state[k], dist_scale)
 
                         sac_trainer.inv_model_net.evals()
-                        network_state, prev_network_action, next_network_state \
-                            = get_model_net_input(env, state, next_state=next_state, ver=args.develop_version)
+
+                        network_states = get_model_net_input(env, state, next_state=next_state, ver=args.develop_version)
+
+                        if args.develop_version == 1:
+                            network_state, prev_network_action, next_network_state = network_states
+                        else:
+                            _, prev_network_action, next_network_state = network_states
 
                         action_hat = sac_trainer.inv_model_net(network_state, prev_network_action,
-                                                               next_network_state).detach().cpu().numpy()[0]
+                                                       next_network_state).detach().cpu().numpy()[0]
                         dist = action_hat - action
                         dist = np.clip(dist, -1.0, 1.0)
                         episode_model_error.append(np.sqrt(np.mean(dist ** 2)))

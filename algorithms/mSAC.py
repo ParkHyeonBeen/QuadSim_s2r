@@ -45,7 +45,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
 
         if args.model_train_start_step <= sac_trainer.worker_step < args.model_train_start_step + args.episode_length:
             env.random_ratio = int(0)
-            load_model(sac_trainer.policy_net, model_path["policy"], "policy_best")
+            load_model(sac_trainer.policy_net, model_path["policy"], "policy_better")
 
         # Episode start
         episode_reward = 0
@@ -142,14 +142,11 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                         if args.develop_mode == "imn" and sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
                             sac_trainer.inv_model_net.evals()
 
-                            # network_state, prev_network_action, next_network_state \
-                            #     = get_model_net_input(env, state, next_state)
-
-                            next_network_state = np.concatenate([next_state["position_error_obs"][:3],
-                                                            next_state["velocity_error_obs"][:3],
-                                                            next_state["rotation_obs"][:6],
-                                                            next_state["angular_velocity_error_obs"][:3]])
-                            prev_network_action = state["action_obs"][env.action_dim:]
+                            network_states = get_model_net_input(env, state, next_state=next_state, ver=args.develop_version)
+                            if args.develop_version == 1:
+                                network_state, prev_network_action, next_network_state = network_states
+                            else:
+                                _, prev_network_action, next_network_state = network_states
 
                             action_hat = sac_trainer.inv_model_net(network_state, prev_network_action, next_network_state).detach().cpu().numpy()
                             episode_model_error.append(np.sqrt(np.mean((action_hat - action)**2)))

@@ -74,7 +74,7 @@ class SAC_Trainer():
             self.inv_model_net = InverseModelNetwork(env, hidden_dim, args).to(device)
             self.imn_optimizer = optim.Adam(self.inv_model_net.parameters(), lr=args.inv_model_lr)
             self.inv_model_net.trains()
-            self.imn_criterion = nn.MSELoss()
+            self.imn_criterion = nn_ard.ELBOLoss(self.inv_model_net, F.smooth_l1_loss).to(device)
             self.action_before = None
 
     def train(self, training=True):
@@ -194,19 +194,18 @@ class SAC_Trainer():
                 action = torch.FloatTensor(action).to(device)
 
                 action_hat = self.inv_model_net(network_state, prev_network_action, next_network_state, train=args.train)
-                # if self.action_before is not None:
-                #     action_hat = self.action_before + 0.5 * (action_hat - self.action_before)
 
-                if args.net_type == "bnn" and worker_step > args.model_train_start_step + 100000:
-                    model_loss = (F.smooth_l1_loss(action, action_hat)
-                                  + self.inv_model_net.kl_weight * self.inv_model_net.kl_loss(self.inv_model_net)).mean()
+                def get_kl_weight(epoch):
+                    return min(1, 2 * (epoch - args.model_train_start_step) / args.model_train_start_step)
+
+                if args.net_type == "bnn" and worker_step > args.model_train_start_step:
+                    model_loss = self.imn_criterion(action_hat, action, 1, get_kl_weight(worker_step)).mean()
                 else:
                     model_loss = F.smooth_l1_loss(action, action_hat).mean()
 
                 self.imn_optimizer.zero_grad()
                 model_loss.backward()
                 self.imn_optimizer.step()
-                # self.action_before = action_hat.detach()
             else:
                 return
 

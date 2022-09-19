@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchbnn as bnn
 from tool.utils import *
+import torch_ard as nn_ard
 
 def _format(device, *inp):
     output = []
@@ -215,8 +216,7 @@ class InverseModelNetwork(nn.Module):
             self.next_state_net_input = self.position_dim + self.rotation_dim
         else:
             self.state_net_input = env.state_dim*self.args.n_history
-            self.next_state_net_input = env.state_dim\
-
+            self.next_state_net_input = env.state_dim
 
         self.prev_action_net_input = self.action_dim * (self.args.n_history-1)
 
@@ -269,40 +269,34 @@ class InverseModelNetwork(nn.Module):
             self.is_freeze = False
 
             self.state_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
-                                in_features=self.state_net_input, out_features=int(self.hidden_dim/2)),
+                nn_ard.LinearARD(in_features=self.state_net_input, out_features=int(self.hidden_dim/2)),
                 # nn.Dropout(0.15),
                 nn.ReLU()
             )
 
             self.prev_action_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
-                                in_features=self.prev_action_net_input, out_features=int(self.hidden_dim / 2)),
+                nn_ard.LinearARD(in_features=self.prev_action_net_input, out_features=int(self.hidden_dim / 2)),
                 # nn.Dropout(0.15),
                 nn.ReLU()
             )
 
             self.middle_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
-                                in_features=self.hidden_dim, out_features=int(self.hidden_dim / 2)),
+                nn_ard.LinearARD(in_features=self.hidden_dim, out_features=int(self.hidden_dim / 2)),
                 # nn.Dropout(0.15),
                 nn.ReLU()
             )
 
             self.next_state_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
-                                in_features=self.next_state_net_input, out_features=int(self.hidden_dim/2)),
+                nn_ard.LinearARD(in_features=self.next_state_net_input, out_features=int(self.hidden_dim/2)),
                 # nn.Dropout(0.15),
                 nn.ReLU()
             )
 
             self.action_net = nn.Sequential(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
-                                in_features=self.hidden_dim, out_features=self.hidden_dim),
+                nn_ard.LinearARD(in_features=self.hidden_dim, out_features=self.hidden_dim),
                 # nn.Dropout(0.15),
                 nn.ReLU(),
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.05,
-                                in_features=self.hidden_dim, out_features=self.action_dim)
+                nn_ard.LinearARD(in_features=self.hidden_dim, out_features=self.action_dim)
             )
 
         self.mse_loss = nn.MSELoss()
