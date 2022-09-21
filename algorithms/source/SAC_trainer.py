@@ -24,7 +24,7 @@ class SAC_Trainer():
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         action_dim = env.action_dim
-        state_dim = env.state_dim * env.n_history
+        state_dim = env.state_dim * args.n_history
         hidden_dim = args.hidden_dim
 
         self.worker_step = torch.zeros(1, dtype=torch.int32, requires_grad=False, device='cpu')
@@ -193,7 +193,7 @@ class SAC_Trainer():
                 next_network_state = torch.FloatTensor(next_network_state).to(device)
                 action = torch.FloatTensor(action).to(device)
 
-                action_hat = self.inv_model_net(network_state, prev_network_action, next_network_state, train=args.train)
+                action_hat = self.inv_model_net(network_state, prev_network_action, next_network_state)
 
                 def get_kl_weight(epoch):
                     return min(1, args.reg_weight * (epoch - args.model_train_start_step) / args.model_train_start_step)

@@ -194,6 +194,7 @@ class PidNetwork(nn.Module):
         self.D.eval()
         self.sum.eval()
 
+
 class InverseModelNetwork(nn.Module):
     def __init__(self, env, hidden_dim, args, net_type=None):
         super(InverseModelNetwork, self).__init__()
@@ -223,9 +224,6 @@ class InverseModelNetwork(nn.Module):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.batch_size = args.batch_size
-
-        self.train_cnt = 0
-        self.KL_train_start = 10000
 
         # Regularization tech
         self.ln = nn.LayerNorm(self.hidden_dim)
@@ -301,7 +299,7 @@ class InverseModelNetwork(nn.Module):
 
         self.apply(weight_init)
 
-    def forward(self, state, prev_action, next_state, train=False):
+    def forward(self, state, prev_action, next_state):
 
         # Tensorlizing
         out = _format(self.device, state, prev_action, next_state)
@@ -322,7 +320,7 @@ class InverseModelNetwork(nn.Module):
         self.middle_net.train()
         self.next_state_net.train()
 
-    def evals(self):
+    def evaluates(self):
         self.state_net.eval()
         self.action_net.eval()
         self.prev_action_net.eval()

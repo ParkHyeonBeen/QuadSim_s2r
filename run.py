@@ -1,4 +1,3 @@
-
 import argparse
 import time
 
@@ -210,6 +209,7 @@ if __name__ == '__main__':
         load_model(sac_trainer.policy_net, log_dir["policy"], "policy_best")
         if args.model_on:
             load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
+            sac_trainer.inv_model_net.evaluates()
             print('Sparsification ratio: %.3f%%' % (100. * nn_ard.get_dropped_params_ratio(sac_trainer.inv_model_net)))
         env = Sim2RealEnv(args=args)
 
@@ -270,7 +270,7 @@ if __name__ == '__main__':
                             for k in next_state.keys():
                                 next_state[k] = np.random.normal(next_state[k], dist_scale)
 
-                        sac_trainer.inv_model_net.evals()
+
                         network_states = get_model_net_input(env, state, next_state=next_state, ver=args.develop_version)
 
                         if args.develop_version == 1:

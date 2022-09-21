@@ -9,6 +9,8 @@ Reference
        Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning
        with a Stochastic Actor" Deep Learning Symposium, NIPS 2017.
 '''
+import gym
+
 #####################################################################################
 
 from envs.sim2real_v1 import *
@@ -130,7 +132,6 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                     episode_reward = 0
                     episode_model_error = []
                     state = env.reset()
-                    action_before = None
                     for step in range(args.episode_length):
                         network_state = np.concatenate([state["position_error_obs"],
                                                         state["velocity_error_obs"],
@@ -140,7 +141,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                         next_state, reward, done, success, _ = env.step(action)
 
                         if args.develop_mode == "imn" and sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
-                            sac_trainer.inv_model_net.evals()
+                            sac_trainer.inv_model_net.evaluates()
 
                             network_states = get_model_net_input(env, state, next_state=next_state, ver=args.develop_version)
                             if args.develop_version == 1:

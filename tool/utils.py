@@ -1,3 +1,6 @@
+from algorithms.source.replay_buffer import *
+from envs.sim2real_v1 import *
+
 import yaml, sys, os, math
 import numpy as np
 import pandas as pd
@@ -178,6 +181,35 @@ def eval_plot(step, pos, vel, rpy, angvel, policy, force):
     # plt.savefig(path + '/sac_v2_multi.png')
     plt.show()
 
+
+class EnvMaker:
+    def __init__(self,
+                 env_name,
+                 args
+                 ):
+
+        self.env_name = env_name
+        if env_name == "QuadRotor-v0":
+            self.env = Sim2RealEnv(args=args)
+            self.position_dim = self.env.position_dim
+            self.velocity_dim = self.env.velocity_dim
+            self.rotation_dim = self.env.rotation_dim
+            self.angular_velocity_dim = self.env.angular_velocity_dim
+            self.state_dim = self.env.state_dim
+            self.action_dim = self.env.action_dim
+            self.replay_buffer = ReplayBuffer
+
+        else:
+            self.env = gym.make(env_name)
+            self.state_dim = self.env.observation_space.shape[0]
+            self.action_dim = self.env.action_space.shape[0]
+            self.replay_buffer = ReplayBufferGym
+
+    def reset(self):
+        self.env.reset()
+
+    def step(self, action):
+        self.env.step(action)
 
 def weight_init(m):
     """Custom weight init for Conv2D and Linear layers.
