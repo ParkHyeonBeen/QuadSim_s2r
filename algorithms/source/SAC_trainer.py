@@ -196,7 +196,7 @@ class SAC_Trainer():
                 action_hat = self.inv_model_net(network_state, prev_network_action, next_network_state, train=args.train)
 
                 def get_kl_weight(epoch):
-                    return min(1, 2 * (epoch - args.model_train_start_step) / args.model_train_start_step)
+                    return min(1, args.reg_weight * (epoch - args.model_train_start_step) / args.model_train_start_step)
 
                 if args.net_type == "bnn" and worker_step > args.model_train_start_step:
                     model_loss = self.imn_criterion(action_hat, action, 1, get_kl_weight(worker_step)).mean()

@@ -299,35 +299,9 @@ class InverseModelNetwork(nn.Module):
                 nn_ard.LinearARD(in_features=self.hidden_dim, out_features=self.action_dim)
             )
 
-        self.mse_loss = nn.MSELoss()
-        self.l1_loss = nn.L1Loss()
-        self.kl_loss = bnn.BKLLoss(reduction='mean', last_layer_only=False)
-
-        self.kl_weight = args.inv_model_kl_weight
-
         self.apply(weight_init)
 
     def forward(self, state, prev_action, next_state, train=False):
-
-        # bnn freezing part to evaluate the model with mean value
-        if self.net_type == 'bnn':
-            if train is False and self.is_freeze is False:
-                # eps_zero fcn is a customized fcn to make eps weight and bias be zero.
-                # so, you should customize utils.__init__.py , freeze_model.py, and linear.py
-                bnn.utils.eps_zero(self.state_net)
-                bnn.utils.eps_zero(self.prev_action_net)
-                bnn.utils.eps_zero(self.middle_net)
-                bnn.utils.eps_zero(self.next_state_net)
-                bnn.utils.eps_zero(self.action_net)
-                self.is_freeze = True
-
-            if train is True and self.is_freeze is True:
-                bnn.utils.unfreeze(self.state_net)
-                bnn.utils.unfreeze(self.prev_action_net)
-                bnn.utils.unfreeze(self.middle_net)
-                bnn.utils.unfreeze(self.next_state_net)
-                bnn.utils.unfreeze(self.action_net)
-                self.is_freeze = False
 
         # Tensorlizing
         out = _format(self.device, state, prev_action, next_state)

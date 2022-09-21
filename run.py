@@ -41,7 +41,7 @@ parser.add_argument("--develop_version", '-dv', default=0, type=int, help="0 : n
 # For test
 parser.add_argument("--test_eps", default=100, type=int, help="The number of test episode using trained policy.")
 parser.add_argument("--render", default="False", type=str2bool)
-parser.add_argument("--result_name", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
+parser.add_argument("--result_name", "-rn", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
 parser.add_argument("--set_goal", default=[0., 0., 2.], help="set goal")
 parser.add_argument("--set_path", default="none", type=str, help="none, circle, sinewave")
@@ -62,6 +62,7 @@ parser.add_argument("--inv_model_lr", default=3e-4, type=float, help="Learning r
 parser.add_argument('--model-kl-weight', default=0.00001, type=float)
 parser.add_argument('--inv-model-kl-weight', default=0.00001, type=float)
 parser.add_argument('--model_train_start_step', default=1.5e7, type=int)
+parser.add_argument('--reg_weight', default=1.0e-5, type=int)
 
 # SAC
 parser.add_argument("--name", default="mSAC", type=str, help="Trained model is saved with this name.")
@@ -209,6 +210,7 @@ if __name__ == '__main__':
         load_model(sac_trainer.policy_net, log_dir["policy"], "policy_best")
         if args.model_on:
             load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
+            print('Sparsification ratio: %.3f%%' % (100. * nn_ard.get_dropped_params_ratio(sac_trainer.inv_model_net)))
         env = Sim2RealEnv(args=args)
 
         result_txt = open(log_dir["test"] + "/test_result_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" + args.net_type + "_" + args.add_to + ".txt", 'w')
@@ -269,7 +271,6 @@ if __name__ == '__main__':
                                 next_state[k] = np.random.normal(next_state[k], dist_scale)
 
                         sac_trainer.inv_model_net.evals()
-
                         network_states = get_model_net_input(env, state, next_state=next_state, ver=args.develop_version)
 
                         if args.develop_version == 1:
