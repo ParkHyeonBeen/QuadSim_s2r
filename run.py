@@ -211,7 +211,7 @@ if __name__ == '__main__':
         result_txt = open(log_dir["test"] + "/test_result_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" + args.net_type + "_" + args.add_to + ".txt", 'w')
 
         if args.model_on:
-            load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
+            load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "best_"+args.net_type)
             sac_trainer.inv_model_net.evaluates()
             if args.net_type == "bnn":
                 print('Sparsification ratio: %.3f%%' % (100. * nn_ard.get_dropped_params_ratio(sac_trainer.inv_model_net)))

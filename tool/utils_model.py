@@ -103,6 +103,7 @@ def save_model(network, loss_best, loss_now, path, ard=False):
             torch.save(network.state_dict(), path + "/best_" + path[-3:])
         else:
             torch.save(network.state_dict(), path + "/better_" + path[-3:])
+        return loss_now
     else:
         if not ard:
             torch.save(network.state_dict(), path + "/current_" + path[-3:])
