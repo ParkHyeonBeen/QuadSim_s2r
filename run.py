@@ -40,7 +40,8 @@ parser.add_argument("--develop_version", '-dv', default=0, type=int, help="0 : n
 # For test
 parser.add_argument("--test_eps", default=100, type=int, help="The number of test episode using trained policy.")
 parser.add_argument("--render", default="False", type=str2bool)
-parser.add_argument("--result_name", "-rn", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
+parser.add_argument("--result_name", "-rn", default="1001-2208QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
+parser.add_argument('--use_prev_policy', '-upp', default='False', type=str2bool, help="if True, use prev best policy")
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
 parser.add_argument("--set_goal", default=[0., 0., 2.], help="set goal")
 parser.add_argument("--set_path", default="none", type=str, help="none, circle, sinewave")
@@ -207,13 +208,15 @@ if __name__ == '__main__':
 
         log_dir = load_log_directories(args.result_name)
         load_model(sac_trainer.policy_net, log_dir["policy"], "policy_best")
+        result_txt = open(log_dir["test"] + "/test_result_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" + args.net_type + "_" + args.add_to + ".txt", 'w')
+
         if args.model_on:
             load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_"+args.net_type)
             sac_trainer.inv_model_net.evaluates()
-            print('Sparsification ratio: %.3f%%' % (100. * nn_ard.get_dropped_params_ratio(sac_trainer.inv_model_net)))
+            if args.net_type == "bnn":
+                print('Sparsification ratio: %.3f%%' % (100. * nn_ard.get_dropped_params_ratio(sac_trainer.inv_model_net)))
+                print('Sparsification ratio: %.3f%%' % (100. * nn_ard.get_dropped_params_ratio(sac_trainer.inv_model_net)), file=result_txt)
         env = Sim2RealEnv(args=args)
-
-        result_txt = open(log_dir["test"] + "/test_result_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" + args.net_type + "_" + args.add_to + ".txt", 'w')
 
         if args.add_to == "action":
             min_dist = args.min_dist_action
@@ -256,7 +259,6 @@ if __name__ == '__main__':
                 step = 0
                 episode_model_error = []
                 dist = np.zeros(env.action_dim)
-                dist_before = np.zeros(env.action_dim)
 
                 for step in range(args.episode_length):
                     network_state = np.concatenate([p, v, r, w])
@@ -269,7 +271,6 @@ if __name__ == '__main__':
                         if args.add_to == "state":
                             for k in next_state.keys():
                                 next_state[k] = np.random.normal(next_state[k], dist_scale)
-
 
                         network_states = get_model_net_input(env, state, next_state=next_state, ver=args.develop_version)
 
@@ -334,6 +335,8 @@ if __name__ == '__main__':
 
         eval_reward.plot_variance_fig(log_dir["test"] + "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to, need_xticks=True)
         eval_reward.save_data(log_dir["test"], "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to, numpy=True)
+        eval_reward.save_data(log_dir["test"], "/reward_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
         eval_success.bar_fig(log_dir["test"] + "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
         eval_success.save_data(log_dir["test"], "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to, numpy=True)
+        eval_success.save_data(log_dir["test"], "/success_rate_%s" % time.strftime("%m%d-%H%M_") + args.develop_mode + "_" +args.net_type + "_" +args.add_to)
         result_txt.close()
