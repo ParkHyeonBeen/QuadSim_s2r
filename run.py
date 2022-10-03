@@ -62,7 +62,7 @@ parser.add_argument("--inv_model_lr", default=3e-4, type=float, help="Learning r
 parser.add_argument('--model-kl-weight', default=0.00001, type=float)
 parser.add_argument('--inv-model-kl-weight', default=0.00001, type=float)
 parser.add_argument('--model_train_start_step', default=1.5e7, type=int)
-parser.add_argument('--reg_weight', default=1.0e-5, type=int)
+parser.add_argument('--reg_weight', default=1.0e-6, type=int)
 
 # SAC
 parser.add_argument("--name", default="mSAC", type=str, help="Trained model is saved with this name.")
