@@ -42,7 +42,7 @@ parser.add_argument("--test_eps", default=100, type=int, help="The number of tes
 parser.add_argument("--render", default="False", type=str2bool)
 parser.add_argument("--result_name", "-rn", default="0824-1306QuadRotor-v0", type=str, help="Checkpoint path to a pre-trained model.")
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
-parser.add_argument("--set_goal", default=[0., 0., 2.], help="set goal")
+parser.add_argument("--set_goal", default=[0., 0., 0.], help="set goal")
 parser.add_argument("--set_path", default="none", type=str, help="none, circle, sinewave")
 parser.add_argument("--test_mode", '-tm', default="disturbance", type=str, help="disturbancce, uncertainty")
 

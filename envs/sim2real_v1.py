@@ -135,53 +135,31 @@ class Sim2RealEnv(QuadRotorAsset):
         R = obs["rotation_obs"][:self.rotation_dim].reshape([3, 2])
         action = obs["action_obs"][:self.action_dim]
 
-        # if np.linalg.norm(Ep) < 1.:
-        #     goal_reward = 0.1
-        # else:
-        #     goal_reward = 0.0
-        # alive_reward = 0.1
+        # dist = np.linalg.norm(Ep)
+        dist = np.linalg.norm(Ep[:2])
+        dist_h = np.abs(Ep[-1])
 
-        dist = np.linalg.norm(Ep)
-        # if self.dense_reward:
-        #     loss_pos = 2. * (1. * np.log(dist + 0.1) + 0.1 * dist)
-        # else:
-        #     loss_pos = -1. if dist < 0.3 else 1.
-        # loss_effort = 0.01 * np.linalg.norm(action)
-        # loss_vel = 0.5 * np.linalg.norm(Ev)
-        # loss_orient = -0. * R[2, 2]
-        # loss_rotation = 0. * np.arccos(np.clip((np.trace(R) - 1) / 2, -1., 1.))
-        # loss_spin = 0.1 * np.linalg.norm(Ew)
-        # loss_crash = 10. * done
-        #
         loss_phi = -1. * R[0, 1]
         loss_tht = -1. * R[1, 1]
         loss_yaw = -1. * R[2, 1]
-        #
-        # reward = -self.sample_time * np.sum([loss_pos,
-        #                                      loss_effort,
-        #                                      loss_vel,
-        #                                      loss_orient,
-        #                                      loss_yaw,
-        #                                      loss_phi,
-        #                                      loss_tht,
-        #                                      loss_rotation,
-        #                                      loss_spin,
-        #                                      loss_crash])
 
         r_pos = np.exp(-dist / 2)
-        r_vel = (1 + np.exp(-(np.linalg.norm(Ev) ** 2) * np.log(10) / 25)) / 2
-        r_angvel = (3 + np.exp(-(np.linalg.norm(Ew) ** 2) * np.log(10) / 25)) / 4
-        # r_vel = np.exp(-(np.linalg.norm(Ev)) / 2)
-        # r_angvel = np.exp(-(np.linalg.norm(Ew)) / 2)
+        r_h = np.exp(-dist_h / 2)
 
         r_roll = (1 - loss_phi) / 2
         r_pitch = (1 - loss_tht) / 2
-        r_yaw = (1 - loss_yaw) / 2
+        # r_yaw = (1 - loss_yaw) / 2
+        r_yaw = np.exp((-1 - loss_yaw)*2)
+
+        r_vel = (1 + np.exp(-(np.linalg.norm(Ev) ** 2) * np.log(10) / 25)) / 2
+        r_angvel = (3 + np.exp(-(np.linalg.norm(Ew) ** 2) * np.log(10) / 25)) / 4
 
         r_action = np.mean(np.exp(-(action + 1) / 2))
-        r_action = (r_action + 1) / 2
 
-        reward = (r_vel * r_angvel + 5 * r_pos * r_roll * r_pitch * r_yaw) / 6
+        # reward = (r_vel * r_angvel + 5 * r_pos * r_roll * r_pitch * r_yaw) / 6
+        reward = (2 * r_vel * r_angvel +
+                  7 * r_pos * r_h * r_roll * r_pitch * r_yaw +
+                  r_action) / 10
 
         return reward
 
@@ -192,43 +170,15 @@ class Sim2RealEnv(QuadRotorAsset):
         R = transition["rotation_obs"][:, :self.rotation_dim].reshape([-1, 3, 2])
         action = transition["action_obs"][:, :self.action_dim]
 
-        # goal_reward = np.where(np.linalg.norm(Ep, axis=1) <= 1., 0.1, 0.).reshape([-1])
-        # alive_reward = 0.1
-
         dist = np.linalg.norm(Ep, axis=1)
-        # if self.dense_reward:
-        #     loss_pos = 2. * (1. * np.log(dist + 0.1) + 0.1 * dist)
-        # else:
-        #     loss_pos = np.where(dist < 0.3, -1., 1.)
-        # loss_effort = 0.01 * np.linalg.norm(action, axis=1)
-        # loss_vel = 0.5 * np.linalg.norm(Ev, axis=1)
-        # loss_orient = -0. * R[:, 2, 2]
-        # loss_yaw = -1. * np.cos(np.arctan2(R[:, 0, 1], R[:, 0, 0]))
-        # loss_rotation = 0. * np.arccos(np.clip((np.trace(R, axis1=1, axis2=2) - 1) / 2, -1., 1.))
-        # loss_spin = 0.1 * np.linalg.norm(Ew, axis=1)
-        # loss_crash = 10. * transition["done"].reshape([-1])
-        #
+
         loss_phi = -1. * R[:, 0, 1]
         loss_tht = -1. * R[:, 1, 1]
         loss_yaw = -1. * R[:, 2, 1]
-        #
-        #
-        # reward = -self.sample_time * np.sum([loss_pos,
-        #                                      loss_effort,
-        #                                      loss_vel,
-        #                                      loss_orient,
-        #                                      loss_yaw,
-        #                                      loss_phi,
-        #                                      loss_tht,
-        #                                      loss_rotation,
-        #                                      loss_spin,
-        #                                      loss_crash], axis=0)
 
         r_pos = np.exp(-dist / 2)
         r_vel = (1 + np.exp(-(np.linalg.norm(Ev, axis=1) ** 2) * np.log(10) / 25)) / 2
         r_angvel = (3 + np.exp(-(np.linalg.norm(Ew, axis=1) ** 2) * np.log(10) / 25)) / 4
-        # r_vel = np.exp(-(np.linalg.norm(Ev, axis=1)) / 2)
-        # r_angvel = np.exp(-(np.linalg.norm(Ew, axis=1)) / 2)
 
         r_roll = (1 - loss_phi) / 2
         r_pitch = (1 - loss_tht) / 2
