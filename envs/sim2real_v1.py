@@ -56,6 +56,9 @@ class Sim2RealEnv(QuadRotorAsset):
 
         if not self.args.train:
             # Randomize initial states
+            self.random_min = 1. - self.random_ratio
+            self.random_max = 1. + self.random_ratio
+
             self.state[:3] = self.goal + self.init_max_pbox * (np.random.randint(2, size=3)*2 - 1) / np.array(
                 [1, 1, 2])
             if self.args.set_path == 'sine':

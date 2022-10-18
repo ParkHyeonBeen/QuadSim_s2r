@@ -50,7 +50,7 @@ parser.add_argument("--test_mode", '-tm', default="disturbance", type=str, help=
 ## For disturbance
 parser.add_argument('--num_dist', '-dn', default=20, type=int, help='the number of disturbance in certain range')
 parser.add_argument('--add_to', '-ad', default='action', type=str, help='action, state')
-parser.add_argument('--max_dist_action', '-xda', default=0.4, type=float, help='max mag of dist for action')
+parser.add_argument('--max_dist_action', '-xda', default=0.8, type=float, help='max mag of dist for action')
 parser.add_argument('--min_dist_action', '-nda', default=0.0, type=float, help='min mag of dist for action')
 parser.add_argument('--max_dist_state', '-xds', default=2.0, type=float, help='max mag of dist for state')
 parser.add_argument('--min_dist_state', '-nds', default=0.0, type=float, help='min mag of dist for state')
@@ -227,9 +227,11 @@ if __name__ == '__main__':
 
         for dist_scale in np.round(np.linspace(min_dist, max_dist, args.num_dist+1), 3):
             if args.add_to == "action":
-                env.dist_scale = dist_scale
-                print("disturbance scale: ", dist_scale * 100, " percent of max thrust", file=result_txt)
-                print("disturbance scale: ", dist_scale * 100, " percent of max thrust")
+                env.random_ratio = dist_scale
+                print("uncertainty scale: ", dist_scale * 100, " percent of init property", file=result_txt)
+                print("uncertainty scale: ", dist_scale * 100, " percent of init property")
+                # print("disturbance scale: ", dist_scale * 100, " percent of max thrust", file=result_txt)
+                # print("disturbance scale: ", dist_scale * 100, " percent of max thrust")
                 eval_reward.get_xticks(np.round(dist_scale * 100, 3))
                 eval_success.get_xticks(np.round(dist_scale * 100, 3))
             else:
