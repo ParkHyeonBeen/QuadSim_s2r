@@ -75,7 +75,6 @@ class SAC_Trainer():
             self.imn_optimizer = optim.Adam(self.inv_model_net.parameters(), lr=args.inv_model_lr)
             self.inv_model_net.trains()
             self.imn_criterion = nn_ard.ELBOLoss(self.inv_model_net, F.smooth_l1_loss).to(device)
-            self.action_before = None
 
     def train(self, training=True):
         self.training = training
@@ -101,7 +100,7 @@ class SAC_Trainer():
         soft_tau = args.soft_tau
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        if worker_step < args.model_train_start_step:
+        if worker_step < args.model_train_start_step and args.use_prev_policy is False:
             transition = self.replay_buffer.get_batch(batch_size)
             network_state = np.concatenate([transition["position_error_obs"],
                                             transition["velocity_error_obs"],
@@ -196,9 +195,12 @@ class SAC_Trainer():
                 action_hat = self.inv_model_net(network_state, prev_network_action, next_network_state)
 
                 def get_kl_weight(epoch):
-                    return min(1, args.reg_weight * (epoch - args.model_train_start_step) / args.model_train_start_step)
+                    if args.use_prev_policy is True:
+                        return min(1, args.reg_weight * epoch / args.model_train_start_step)
+                    else:
+                        return min(1, args.reg_weight * (epoch - args.model_train_start_step) / args.model_train_start_step)
 
-                if args.net_type == "bnn" and worker_step > args.model_train_start_step:
+                if args.use_prev_policy is True or (args.net_type == "bnn" and worker_step > args.model_train_start_step):
                     model_loss = self.imn_criterion(action_hat, action, 1, get_kl_weight(worker_step)).mean()
                 else:
                     model_loss = F.smooth_l1_loss(action, action_hat).mean()

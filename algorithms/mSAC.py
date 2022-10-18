@@ -19,6 +19,7 @@ import torch
 import time
 from tool.logger import *
 from tool.utils import *
+import torch_ard as nn_ard
 from tool.utils_model import *
 
 eval_data = DataManager()
@@ -33,7 +34,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
 
     # Configure environments to train
     DETERMINISTIC = not args.train\
-        if sac_trainer.worker_step.tolist()[0] < args.model_train_start_step else True
+        if args.use_prev_policy is False or (sac_trainer.worker_step.tolist()[0] < args.model_train_start_step) else True
 
     env = Sim2RealEnv(args=args)
 
@@ -42,12 +43,16 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
     eval_freq = args.eval_frequency
     best_score = 0.
     best_error = 100.
+    best_error_bnn = 100.
 
     while sac_trainer.worker_step < args.max_interaction:
-
-        if args.model_train_start_step <= sac_trainer.worker_step < args.model_train_start_step + args.episode_length:
-            env.random_ratio = int(0)
-            load_model(sac_trainer.policy_net, model_path["policy"], "policy_best")
+        if args.use_prev_policy is True:
+            log_dir = load_log_directories(args.result_name)
+            load_model(sac_trainer.policy_net, log_dir["policy"], "policy_best")
+        else:
+            if args.model_train_start_step <= sac_trainer.worker_step < args.model_train_start_step + args.episode_length:
+                env.random_ratio = int(0)
+                load_model(sac_trainer.policy_net, model_path["policy"], "policy_best")
 
         # Episode start
         episode_reward = 0
@@ -55,14 +60,21 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
         step = 0
         episode_batch = {}
         for step in range(args.episode_length):
-            if sac_trainer.worker_step > args.random_action * args.num_worker:
+            if args.use_prev_policy is True:
                 network_state = np.concatenate([state["position_error_obs"],
                                                 state["velocity_error_obs"],
                                                 state["rotation_obs"],
                                                 state["angular_velocity_error_obs"]])
                 action = sac_trainer.policy_net.get_action(network_state, deterministic=DETERMINISTIC)
             else:
-                action = sac_trainer.policy_net.random_action()
+                if sac_trainer.worker_step > args.random_action * args.num_worker:
+                    network_state = np.concatenate([state["position_error_obs"],
+                                                    state["velocity_error_obs"],
+                                                    state["rotation_obs"],
+                                                    state["angular_velocity_error_obs"]])
+                    action = sac_trainer.policy_net.get_action(network_state, deterministic=DETERMINISTIC)
+                else:
+                    action = sac_trainer.policy_net.random_action()
             next_state, reward, done, success, _ = env.step(action)
 
             if step == 0:
@@ -140,9 +152,9 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                         action = sac_trainer.policy_net.get_action(network_state, deterministic=args.train)
                         next_state, reward, done, success, _ = env.step(action)
 
-                        if args.develop_mode == "imn" and sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
+                        if (args.develop_mode == "imn" and sac_trainer.worker_step.tolist()[0] > args.model_train_start_step)\
+                                or args.use_prev_policy is True:
                             sac_trainer.inv_model_net.evaluates()
-
                             network_states = get_model_net_input(env, state, next_state=next_state, ver=args.develop_version)
                             if args.develop_version == 1:
                                 network_state, prev_network_action, next_network_state = network_states
@@ -164,17 +176,29 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                     episode_rewards.append(episode_reward)
                     episodes_model_error.append(episode_model_error)
                 avg_reward = np.mean(episode_rewards)
-                best_score_tmp = save_policy(sac_trainer.policy_net, best_score, avg_reward, success_cnt, model_path['policy'])
+                success_rate = success_cnt/args.num_eval
+                best_score_tmp = save_policy(sac_trainer.policy_net, best_score, avg_reward, success_rate, model_path['policy'])
                 if best_score_tmp is not None:
                     best_score = best_score_tmp
 
-                if args.develop_mode == "imn" and sac_trainer.worker_step.tolist()[0] > args.model_train_start_step:
+                if (args.develop_mode == "imn" and sac_trainer.worker_step.tolist()[0] > args.model_train_start_step)\
+                        or args.use_prev_policy is True:
                     eval_error = np.mean([np.mean(episode_errors) for episode_errors in episodes_model_error], keepdims=True)
                     eval_data.put_data(eval_error)
+
                     best_error_tmp = save_model(sac_trainer.inv_model_net, best_error, eval_error[0],
                                                 model_path[args.net_type])
                     if best_error_tmp is not None:
                         best_error = best_error_tmp
+
+                    if args.net_type == "bnn":
+                        now_error = eval_error[0]/nn_ard.get_dropped_params_ratio(sac_trainer.inv_model_net)
+
+                        best_error_bnn_tmp = save_model(sac_trainer.inv_model_net, best_error_bnn, now_error,
+                                                    model_path[args.net_type], ard=True)
+                        if best_error_bnn_tmp is not None:
+                            best_error_bnn = best_error_bnn_tmp
+
                     eval_data.plot_fig(model_path['train'] + "/model_error.png")
                     # if len(eval_data.data) > 1:
                     #     plot_variance_fig(np.mean(episodes_model_error, axis=0), np.std(episodes_model_error, axis=0),
