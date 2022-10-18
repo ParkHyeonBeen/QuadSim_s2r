@@ -170,24 +170,31 @@ class Sim2RealEnv(QuadRotorAsset):
         R = transition["rotation_obs"][:, :self.rotation_dim].reshape([-1, 3, 2])
         action = transition["action_obs"][:, :self.action_dim]
 
-        dist = np.linalg.norm(Ep, axis=1)
+        # dist = np.linalg.norm(Ep, axis=1)
+        dist = np.linalg.norm(Ep[:2], axis=1)
+        dist_h = np.abs(Ep[-1])
 
         loss_phi = -1. * R[:, 0, 1]
         loss_tht = -1. * R[:, 1, 1]
         loss_yaw = -1. * R[:, 2, 1]
 
         r_pos = np.exp(-dist / 2)
-        r_vel = (1 + np.exp(-(np.linalg.norm(Ev, axis=1) ** 2) * np.log(10) / 25)) / 2
-        r_angvel = (3 + np.exp(-(np.linalg.norm(Ew, axis=1) ** 2) * np.log(10) / 25)) / 4
+        r_h = np.exp(-dist_h / 2)
 
         r_roll = (1 - loss_phi) / 2
         r_pitch = (1 - loss_tht) / 2
-        r_yaw = (1 - loss_yaw) / 2
+        # r_yaw = (1 - loss_yaw) / 2
+        r_yaw = np.exp((-1 - loss_yaw)*2)
+
+        r_vel = (1 + np.exp(-(np.linalg.norm(Ev, axis=1) ** 2) * np.log(10) / 25)) / 2
+        r_angvel = (3 + np.exp(-(np.linalg.norm(Ew, axis=1) ** 2) * np.log(10) / 25)) / 4
 
         r_action = np.mean(np.exp(-(action + 1) / 2), axis=1)
-        r_action = (r_action + 1) / 2
 
-        reward = (r_vel * r_angvel + 5 * r_pos * r_roll * r_pitch * r_yaw) / 6
+        # reward = (r_vel * r_angvel + 5 * r_pos * r_roll * r_pitch * r_yaw) / 6
+        reward = (2 * r_vel * r_angvel +
+                  7 * r_pos * r_h * r_roll * r_pitch * r_yaw +
+                  r_action) / 10
 
         return reward
 
