@@ -33,6 +33,7 @@ def create_log_directories(root, env_name):
     directories['model'] = directories['network']+"/model"
     directories['dnn'] = directories['model']+"/dnn"
     directories['bnn'] = directories['model']+"/bnn"
+    directories['rbf'] = directories['model'] + "/rbf"
 
     for key in directories.keys():
         if not os.path.isdir(directories[key]):

@@ -192,7 +192,7 @@ def worker(id, sac_trainer, rewards_queue, replay_buffer, model_path, args, log_
                         best_error = best_error_tmp
 
                     if args.net_type == "bnn":
-                        now_error = eval_error[0]/nn_ard.get_dropped_params_ratio(sac_trainer.inv_model_net)
+                        now_error = eval_error[0]*np.exp(0.8*(1 - nn_ard.get_dropped_params_ratio(sac_trainer.inv_model_net)))
 
                         best_error_bnn_tmp = save_model(sac_trainer.inv_model_net, best_error_bnn, now_error,
                                                     model_path[args.net_type], ard=True)

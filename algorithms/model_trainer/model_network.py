@@ -5,6 +5,7 @@ import torch.optim as optim
 import torchbnn as bnn
 from tool.utils import *
 import torch_ard as nn_ard
+import torch_rbf as nn_rbf
 
 def _format(device, *inp):
     output = []
@@ -223,79 +224,96 @@ class InverseModelNetwork(nn.Module):
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.batch_size = args.batch_size
-
-        # Regularization tech
-        self.ln = nn.LayerNorm(self.hidden_dim)
-        self.bn = nn.BatchNorm1d(self.hidden_dim)
-        self.do1 = nn.Dropout(0.15)
+        # # Regularization tech
+        # self.ln = nn.LayerNorm(self.hidden_dim)
+        # self.bn = nn.BatchNorm1d(self.hidden_dim)
+        # self.do = nn.Dropout(0.05)
 
         # construct the structure of model network
         if self.net_type == "dnn":
             self.state_net = nn.Sequential(
                 nn.Linear(self.state_net_input, int(self.hidden_dim/2)),
-                nn.Dropout(0.05),
                 nn.ReLU(),
-                # nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
             )
             self.prev_action_net = nn.Sequential(
                 nn.Linear(self.prev_action_net_input, int(self.hidden_dim / 2)),
-                nn.Dropout(0.05),
                 nn.ReLU(),
-                # nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
             )
             self.middle_net = nn.Sequential(
                 nn.Linear(self.hidden_dim, int(self.hidden_dim / 2)),
-                nn.Dropout(0.05),
                 nn.ReLU(),
-                # nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
             )
             self.next_state_net = nn.Sequential(
                 nn.Linear(self.next_state_net_input, int(self.hidden_dim/2)),
-                nn.Dropout(0.05),
                 nn.ReLU(),
-                # nn.Linear(int(self.hidden_dim / 2), int(self.hidden_dim / 2))
             )
             self.action_net = nn.Sequential(
                 nn.Linear(self.hidden_dim, self.hidden_dim),
-                nn.Dropout(0.05),
                 nn.ReLU(),
                 nn.Linear(self.hidden_dim, self.action_dim)
             )
 
         if self.net_type == "bnn":
-            self.is_freeze = False
 
             self.state_net = nn.Sequential(
                 nn_ard.LinearARD(in_features=self.state_net_input, out_features=int(self.hidden_dim/2)),
-                # nn.Dropout(0.15),
                 nn.ReLU()
             )
 
             self.prev_action_net = nn.Sequential(
                 nn_ard.LinearARD(in_features=self.prev_action_net_input, out_features=int(self.hidden_dim / 2)),
-                # nn.Dropout(0.15),
                 nn.ReLU()
             )
 
             self.middle_net = nn.Sequential(
                 nn_ard.LinearARD(in_features=self.hidden_dim, out_features=int(self.hidden_dim / 2)),
-                # nn.Dropout(0.15),
                 nn.ReLU()
             )
 
             self.next_state_net = nn.Sequential(
                 nn_ard.LinearARD(in_features=self.next_state_net_input, out_features=int(self.hidden_dim/2)),
-                # nn.Dropout(0.15),
                 nn.ReLU()
             )
 
             self.action_net = nn.Sequential(
                 nn_ard.LinearARD(in_features=self.hidden_dim, out_features=self.hidden_dim),
-                # nn.Dropout(0.15),
                 nn.ReLU(),
                 nn_ard.LinearARD(in_features=self.hidden_dim, out_features=self.action_dim)
             )
+
+        if self.net_type == "rbf":
+
+            network_input = self.state_net_input + self.prev_action_net_input + self.next_state_net_input
+
+            self.action_net = nn.Sequential(
+                nn_rbf.RBF(in_features=network_input, out_features=self.hidden_dim, basis_func=nn_rbf.gaussian),
+                nn.Linear(in_features=self.hidden_dim, out_features=self.action_dim),
+            )
+
+            # self.state_net = nn.Sequential(
+            #     nn_rbf.RBF(in_features=self.state_net_input, out_features=int(self.hidden_dim/2), basis_func=nn_rbf.gaussian),
+            #     nn.Linear(in_features=int(self.hidden_dim/2), out_features=int(self.hidden_dim/2)),
+            # )
+            #
+            # self.prev_action_net = nn.Sequential(
+            #     nn_rbf.RBF(in_features=self.prev_action_net_input, out_features=int(self.hidden_dim/2), basis_func=nn_rbf.gaussian),
+            #     nn.Linear(in_features=int(self.hidden_dim/2), out_features=int(self.hidden_dim/2)),
+            # )
+            #
+            # self.middle_net = nn.Sequential(
+            #     nn_rbf.RBF(in_features=self.hidden_dim, out_features=int(self.hidden_dim/2), basis_func=nn_rbf.gaussian),
+            #     nn.Linear(in_features=int(self.hidden_dim/2), out_features=int(self.hidden_dim/2)),
+            # )
+            #
+            # self.next_state_net = nn.Sequential(
+            #     nn_rbf.RBF(in_features=self.next_state_net_input, out_features=int(self.hidden_dim/2), basis_func=nn_rbf.gaussian),
+            #     nn.Linear(in_features=int(self.hidden_dim/2), out_features=int(self.hidden_dim/2)),
+            # )
+            #
+            # self.action_net = nn.Sequential(
+            #     nn_rbf.RBF(in_features=self.hidden_dim, out_features=self.hidden_dim, basis_func=nn_rbf.gaussian),
+            #     nn.Linear(in_features=self.hidden_dim, out_features=self.action_dim),
+            # )
 
         self.apply(weight_init)
 
@@ -304,26 +322,117 @@ class InverseModelNetwork(nn.Module):
         # Tensorlizing
         out = _format(self.device, state, prev_action, next_state)
 
-        state = self.state_net(out[0])
-        prev_action = self.prev_action_net(out[1])
+        if self.net_type == 'rbf':
+            action = self.action_net(torch.cat(out, dim=-1))
+        else:
+            state = self.state_net(out[0])
+            prev_action = self.prev_action_net(out[1])
 
-        middle = self.middle_net(torch.cat([state, prev_action], dim=-1))
-        next_state = self.next_state_net(out[2])
+            middle = self.middle_net(torch.cat([state, prev_action], dim=-1))
+            next_state = self.next_state_net(out[2])
 
-        action = torch.tanh(self.action_net(torch.cat([middle, next_state], dim=-1)))
+            action = torch.tanh(self.action_net(torch.cat([middle, next_state], dim=-1)))
         return action
 
     def trains(self):
-        self.state_net.train()
         self.action_net.train()
-        self.prev_action_net.train()
-        self.middle_net.train()
-        self.next_state_net.train()
+
+        if self.net_type != 'rbf':
+            self.state_net.train()
+            self.prev_action_net.train()
+            self.middle_net.train()
+            self.next_state_net.train()
 
     def evaluates(self):
-        self.state_net.eval()
         self.action_net.eval()
-        self.prev_action_net.eval()
-        self.middle_net.eval()
-        self.next_state_net.eval()
 
+        if self.net_type != 'rbf':
+            self.state_net.eval()
+            self.prev_action_net.eval()
+            self.middle_net.eval()
+            self.next_state_net.eval()
+
+class CompressedInverseModelNetwork(nn.Module):
+    def __init__(self, env, hidden_dim, args, net_type=None):
+        super(CompressedInverseModelNetwork, self).__init__()
+
+        if net_type is None:
+            self.net_type = args.net_type
+        else:
+            self.net_type = net_type
+
+        self.state_net = nn.Sequential(
+            nn.Linear(self.state_net_input, int(self.hidden_dim / 2)),
+            nn.ReLU(),
+        )
+        self.prev_action_net = nn.Sequential(
+            nn.Linear(self.prev_action_net_input, int(self.hidden_dim / 2)),
+            nn.ReLU(),
+        )
+        self.middle_net = nn.Sequential(
+            nn.Linear(self.hidden_dim, int(self.hidden_dim / 2)),
+            nn.ReLU(),
+        )
+        self.next_state_net = nn.Sequential(
+            nn.Linear(self.next_state_net_input, int(self.hidden_dim / 2)),
+            nn.ReLU(),
+        )
+        self.action_net = nn.Sequential(
+            nn.Linear(self.hidden_dim, self.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(self.hidden_dim, self.action_dim)
+        )
+
+    def forward(self, state, prev_action, next_state):
+
+        # Tensorlizing
+        out = _format(self.device, state, prev_action, next_state)
+
+        if self.net_type == 'rbf':
+            action = self.action_net(torch.cat(out, dim=-1))
+        else:
+            state = self.state_net(out[0])
+            prev_action = self.prev_action_net(out[1])
+
+            middle = self.middle_net(torch.cat([state, prev_action], dim=-1))
+            next_state = self.next_state_net(out[2])
+
+            action = torch.tanh(self.action_net(torch.cat([middle, next_state], dim=-1)))
+        return action
+
+# class CompressedInverseModelNetwork(nn.Module):
+#     def __init__(self, saved_network):
+#         super(CompressedInverseModelNetwork, self).__init__()
+#
+#         self.state_net_weight = saved_network["state_net.0.weight"]
+#         self.state_net_bias = saved_network["state_net.0.bias"]
+#         self.prev_action_net_weight = saved_network["prev_action_net.0.weight"]
+#         self.prev_action_net_bias = saved_network["prev_action_net.0.bias"]
+#         self.middle_net_weight = saved_network["middle_net.0.weight"]
+#         self.middle_net_bias = saved_network["middle_net.0.bias"]
+#         self.next_state_net_weight = saved_network["next_state_net.0.weight"]
+#         self.next_state_net_bias = saved_network["next_state_net.0.bias"]
+#         self.action_net_weight = saved_network["action_net.0.weight"]
+#         self.action_net_bias = saved_network["action_net.0.bias"]
+#         self.action_net_weight2 = saved_network["action_net.2.weight"]
+#         self.action_net_bias2 = saved_network["action_net.2.bias"]
+#
+#     def forward(self, state, prev_action, next_state):
+#
+#         # Tensorlizing
+#         out = _format(self.device, state, prev_action, next_state)
+#
+#         if self.net_type == 'rbf':
+#             action = F.relu(F.linear(torch.cat(out, dim=-1), self.action_net_weight) + self.action_net_bias)
+#             action = torch.tanh(F.linear(action, self.action_net_weight2) + self.action_net_bias2)
+#         else:
+#             state = F.relu(F.linear(out[0], self.state_net_weight) + self.state_net_bias)
+#             prev_action = F.relu(F.linear(out[1], self.prev_action_net_weight) + self.prev_action_net_bias)
+#
+#             middle = F.relu(F.linear(torch.cat([state, prev_action], dim=-1), self.middle_net_weight) + self.middle_net_bias)
+#             next_state = F.relu(F.linear(out[3], self.next_state_net_weight) + self.next_state_net_bias)
+#
+#             action = F.relu(F.linear(torch.cat([middle, next_state], dim=-1), self.action_net_weight) + self.action_net_bias)
+#             action = torch.tanh(F.linear(action, self.action_net_weight2) + self.action_net_bias2)
+#
+#         return action

@@ -181,36 +181,6 @@ def eval_plot(step, pos, vel, rpy, angvel, policy, force):
     # plt.savefig(path + '/sac_v2_multi.png')
     plt.show()
 
-
-class EnvMaker:
-    def __init__(self,
-                 env_name,
-                 args
-                 ):
-
-        self.env_name = env_name
-        if env_name == "QuadRotor-v0":
-            self.env = Sim2RealEnv(args=args)
-            self.position_dim = self.env.position_dim
-            self.velocity_dim = self.env.velocity_dim
-            self.rotation_dim = self.env.rotation_dim
-            self.angular_velocity_dim = self.env.angular_velocity_dim
-            self.state_dim = self.env.state_dim
-            self.action_dim = self.env.action_dim
-            self.replay_buffer = ReplayBuffer
-
-        else:
-            self.env = gym.make(env_name)
-            self.state_dim = self.env.observation_space.shape[0]
-            self.action_dim = self.env.action_space.shape[0]
-            self.replay_buffer = ReplayBufferGym
-
-    def reset(self):
-        self.env.reset()
-
-    def step(self, action):
-        self.env.step(action)
-
 def weight_init(m):
     """Custom weight init for Conv2D and Linear layers.
         Reference: https://github.com/MishaLaskin/rad/blob/master/curl_sac.py"""
@@ -344,13 +314,21 @@ def save_policy(policy, score_best, score_now, alive_rate, path):
         torch.save(policy.state_dict(), path + "/policy_current")
 
 def load_model(network, path, fname):
-    if "bnn" in fname:
-        model_tmp = torch.load(path +'/' + fname)
-        for key in model_tmp.copy().keys():
-            if 'eps' in key:
-                del (model_tmp[key])
-        network.load_state_dict(model_tmp)
+    if "model" in path:
+        if "bnn" in fname:
+            model_tmp = torch.load(path + '/' + fname)
+            saved_model = model_tmp["network"]
+            for key in saved_model.copy().keys():
+                if 'eps' in key:
+                    del (saved_model[key])
+            network.load_state_dict(saved_model)
+            print(model_tmp.keys())
+            print('Sparsification ratio: %.3f%%' % (model_tmp["sparsity_ratio"]))
+        else:
+            network.load_state_dict(torch.load(path + '/' + fname)["network"])
     else:
-        network.load_state_dict(torch.load(path +'/' + fname))
+        network.load_state_dict(torch.load(path + '/' + fname))
     network.eval()
+
+
 

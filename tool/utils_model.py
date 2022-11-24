@@ -1,14 +1,6 @@
 from tool.utils import *
 import torch_ard as nn_ard
 
-# def save_model(network, fname : str, path : str):
-#     if "dnn" in fname:
-#         torch.save(network.state_dict(), path + fname)
-#     elif "bnn" in fname:
-#         torch.save(network.state_dict(), path + fname)
-#     else:
-#         torch.save(network.state_dict(), path + fname)
-
 def get_model_net_input(env, state, next_state=None, ver=0):
     # "next_state is None" means Train mode
 
@@ -42,105 +34,90 @@ def get_model_net_input(env, state, next_state=None, ver=0):
                                                  state["angular_velocity_error_next_obs"][:, :3]], axis=1)
             prev_network_action = state["action_obs"][:, env.action_dim:]
         else:
-            network_state = None
+            network_state = np.concatenate([state["position_error_obs"],
+                                            state["velocity_error_obs"],
+                                            state["rotation_obs"],
+                                            state["angular_velocity_error_obs"]])
+
             next_network_state = np.concatenate([next_state["position_error_obs"][:3],
                                                  next_state["velocity_error_obs"][:3],
-                                                next_state["rotation_obs"][:6],
-                                                next_state["angular_velocity_error_obs"][:3]])
+                                                 next_state["rotation_obs"][:6],
+                                                 next_state["angular_velocity_error_obs"][:3]])
             prev_network_action = state["action_obs"][env.action_dim:]
 
     return network_state, prev_network_action, next_network_state
 
-def create_models(state_dim, action_dim, algorithm, args, net_type="dnn,bnn"):
+def compressing(network):
+    print("--------compressing---------------")
 
-    models = {}
+    compressed_model = {}
 
-    dnn = True if "dnn" in net_type else False
-    bnn = True if "bnn" in net_type else False
+    network.state_net[0].save_net()
+    network.prev_action_net[0].save_net()
+    network.middle_net[0].save_net()
+    network.next_state_net[0].save_net()
+    network.action_net[0].save_net()
+    network.action_net[2].save_net()
 
-    if dnn and args.develop_mode != 'DeepDOB':
-        models['ModelNetDnn'] = DynamicsNetwork(state_dim, action_dim, args, net_type="DNN")
-    if dnn is True and args.develop_mode != 'MRAP':
-        models['InvModelNetDnn'] = InverseDynamicsNetwork(state_dim, action_dim, algorithm, args, net_type="DNN")
-    if bnn is True and args.develop_mode != 'DeepDOB':
-        models['ModelNetBnn'] = DynamicsNetwork(state_dim, action_dim, args, net_type="BNN")
-    if bnn is True and args.develop_mode != 'MRAP':
-        models['InvModelNetBnn'] = InverseDynamicsNetwork(state_dim, action_dim, algorithm, args, net_type="BNN")
+    compressed_model["state_net.0.weight"] = network.state_net[0].W.detach()
+    compressed_model["prev_action_net.0.weight"] = network.prev_action_net[0].W.detach()
+    compressed_model["middle_net.0.weight"] = network.middle_net[0].W.detach()
+    compressed_model["next_state_net.0.weight"] = network.next_state_net[0].W.detach()
+    compressed_model["action_net.0.weight"] = network.action_net[0].W.detach()
+    compressed_model["action_net.2.weight"] = network.action_net[2].W.detach()
 
-    return models
+    compressed_model["state_net.0.bias"] = network.state_net[0].bias.detach()
+    compressed_model["prev_action_net.0.bias"] = network.prev_action_net[0].bias.detach()
+    compressed_model["middle_net.0.bias"] = network.middle_net[0].bias.detach()
+    compressed_model["next_state_net.0.bias"] = network.next_state_net[0].bias.detach()
+    compressed_model["action_net.0.bias"] = network.action_net[0].bias.detach()
+    compressed_model["action_net.2.bias"] = network.action_net[2].bias.detach()
 
-def eval_models(state, action, next_state, models):
-    error_list = []
-    for model in models.values:
-        _error = model.eval_model(state, action, next_state)
-        error_list.append(_error)
-    errors = np.hstack(error_list)
-    return errors
-
-def train_alls(training_step, models):
-    cost_list = []
-    mse_list = []
-    kl_list = []
-
-    if len(models) == 0:
-        raise Exception("your models is empty now")
-
-    for model in models.values():
-        _cost, _mse, _kl = model.train_all(training_step)
-        cost_list.append(_cost)
-        mse_list.append(_mse)
-        kl_list.append(_kl)
-
-    costs = np.hstack(cost_list)
-    mses = np.hstack(mse_list)
-    kls = np.hstack(kl_list)
-
-    return costs, mses, kls
+    return compressed_model
 
 def save_model(network, loss_best, loss_now, path, ard=False):
+
+    print("--------save model ---------------")
+    save_state = {}
+
+    if network.net_type == "bnn":
+        save_state["network"] = compressing(network)
+        sparsity_ratio = round(100. * nn_ard.get_dropped_params_ratio(network), 3)
+        save_state["sparsity_ratio"] = sparsity_ratio
+        print('Sparsification ratio: %.3f%%' % sparsity_ratio)
+    else:
+        save_state["network"] = network.state_dict()
+        # save_state = {"state_net.0.weight": network.state_dict()["state_net.0.weight"],
+        #               "state_net.0.bias": network.state_dict()["state_net.0.bias"],
+        #               "prev_action_net.0.weight": network.state_dict()["prev_action_net.0.weight"],
+        #               "prev_action_net.0.bias": network.state_dict()["prev_action_net.0.bias"],
+        #               "middle_net.0.weight": network.state_dict()["middle_net.0.weight"],
+        #               "middle_net.0.bias": network.state_dict()["middle_net.0.bias"],
+        #               "next_state_net.0.weight": network.state_dict()["next_state_net.0.weight"],
+        #               "next_state_net.0.bias": network.state_dict()["next_state_net.0.bias"],
+        #               "action_net.0.weight": network.state_dict()["action_net.0.weight"],
+        #               "action_net.0.bias": network.state_dict()["action_net.0.bias"],
+        #               "action_net.2.weight": network.state_dict()["action_net.2.weight"],
+        #               "action_net.2.bias": network.state_dict()["action_net.2.bias"]
+        #               }
+
     if loss_best > loss_now:
         if ard:
-            torch.save(network.state_dict(), path + "/best_" + path[-3:])
+            torch.save(save_state, path + "/best_" + path[-3:])
         else:
-            torch.save(network.state_dict(), path + "/better_" + path[-3:])
+            torch.save(save_state, path + "/better_" + path[-3:])
         return loss_now
     else:
         if not ard:
-            torch.save(network.state_dict(), path + "/current_" + path[-3:])
+            torch.save(save_state, path + "/current_" + path[-3:])
 
-def load_models(args_tester, model):
+def get_action(policy_net, state):
+    network_state = np.concatenate([state["position_error_obs"],
+                                    state["velocity_error_obs"],
+                                    state["rotation_obs"],
+                                    state["angular_velocity_error_obs"]])
 
-    path = args_tester.path
-    path_model = None
-    path_invmodel = None
-
-    if "DNN" in args_tester.modelnet_name:
-        if args_tester.prev_result is True:
-            path_model = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/" + args_tester.modelnet_name
-            path_invmodel = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/inv" + args_tester.modelnet_name
-        else:
-            path_model = path + args_tester.result_fname + "saved_net/model/DNN/" + args_tester.modelnet_name
-            path_invmodel = path + args_tester.result_fname + "saved_net/model/DNN/inv" + args_tester.modelnet_name
-
-    if "BNN" in args_tester.modelnet_name:
-        if args_tester.prev_result is True:
-            path_model = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/" + args_tester.modelnet_name
-            path_invmodel = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/inv" + args_tester.modelnet_name
-        else:
-            path_model = path + args_tester.result_fname + "saved_net/model/BNN/" + args_tester.modelnet_name
-            path_invmodel = path + args_tester.result_fname + "saved_net/model/BNN/inv" + args_tester.modelnet_name
-
-    if args_tester.develop_mode == "MRAP":
-        model.load_state_dict(torch.load(path_model))
-    if args_tester.develop_mode == "DeepDOB":
-        if "bnn" in args_tester.result_fname:
-            model_tmp = torch.load(path_invmodel)
-            for key in model_tmp.copy().keys():
-                if 'eps' in key:
-                    del(model_tmp[key])
-            model.load_state_dict(model_tmp)
-        else:
-            model.load_state_dict(torch.load(path_invmodel))
+    return policy_net.get_action(network_state, deterministic=True)
 
 def validate_measure(error_list):
     error_max = np.max(error_list, axis=0)

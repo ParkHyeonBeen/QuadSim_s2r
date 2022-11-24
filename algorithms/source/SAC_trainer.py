@@ -71,7 +71,11 @@ class SAC_Trainer():
             self.pid_net.trains()
 
         if args.develop_mode == "imn":
-            self.inv_model_net = InverseModelNetwork(env, hidden_dim, args).to(device)
+            if args.train is True:
+                self.inv_model_net = InverseModelNetwork(env, hidden_dim, args).to(device)
+            else:
+                self.inv_model_net = InverseModelNetwork(env, hidden_dim, args, net_type="dnn").to(device)
+
             self.imn_optimizer = optim.Adam(self.inv_model_net.parameters(), lr=args.inv_model_lr)
             self.inv_model_net.trains()
             self.imn_criterion = nn_ard.ELBOLoss(self.inv_model_net, F.smooth_l1_loss).to(device)
