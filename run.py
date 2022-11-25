@@ -41,6 +41,7 @@ parser.add_argument("--result_name", "-rn", default="1001-2208QuadRotor-v0", typ
                     help="Checkpoint path to a pre-trained model.")
 parser.add_argument('--use_prev_policy', '-upp', default='False', type=str2bool, help="if True, use prev best policy")
 parser.add_argument("--model_on", default="True", type=str2bool, help="if True, activate model network")
+parser.add_argument("--result_ver", default="best", type=str, help="choose the version of the results")
 parser.add_argument("--set_goal", default=[0., 0., 2.], help="set goal")
 parser.add_argument("--set_path", default="none", type=str, help="none, circle, sinewave")
 
@@ -224,7 +225,7 @@ if __name__ == '__main__':
             if args.net_type == "dnn":
                 load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "better_" + args.net_type)
             else:
-                load_model(sac_trainer.inv_model_net, log_dir[args.net_type], "best_" + args.net_type)
+                load_model(sac_trainer.inv_model_net, log_dir[args.net_type], args.result_ver + "_" + args.net_type)
             sac_trainer.inv_model_net.evaluates()
 
         if args.which_kind == "disturb":
