@@ -56,9 +56,6 @@ class Sim2RealEnv(QuadRotorAsset):
 
         if not self.args.train:
             # Randomize initial states
-            self.random_min = 1. - self.random_ratio
-            self.random_max = 1. + self.random_ratio
-
             self.state[:3] = self.goal + self.init_max_pbox * (np.random.randint(2, size=3)*2 - 1) / np.array(
                 [1, 1, 2])
             if self.args.set_path == 'sine':
@@ -70,11 +67,11 @@ class Sim2RealEnv(QuadRotorAsset):
             self.state[9:] = self.init_max_ang_vel*(np.random.randint(2, size=3)*2 - 1)
 
             # Randomize parameter of the quadrotor
-            self.mass = self.init_mass * np.random.choice([self.random_min, self.random_max])
-            self.length = self.init_length * np.random.choice([self.random_min, self.random_max])
-            self.kt = self.init_kt * np.random.choice([self.random_min, self.random_max])
-            self.inertia = self.init_inertia * np.random.choice([self.random_min, self.random_max])
-            self.lag_ratio = self.init_lag_ratio * np.random.choice([self.random_min, self.random_max])
+            self.mass = self.init_mass * (1. + self.random_ratio)
+            self.length = self.init_length * (1. + self.random_ratio)
+            self.inertia = self.init_inertia * (1. + self.random_ratio)
+            # self.kt = self.init_kt * (1. + self.random_ratio)
+            # self.lag_ratio = self.init_lag_ratio * (1. + self.random_ratio)
         else:
             # Randomize initial states
             self.state[:3] = self.goal + np.random.uniform(-self.init_max_pbox, self.init_max_pbox, 3) / np.array([1, 1, 2])

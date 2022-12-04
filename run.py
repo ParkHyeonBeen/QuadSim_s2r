@@ -253,7 +253,7 @@ if __name__ == '__main__':
                     eval_model_error.get_xticks(np.round(case * 100, 3))
 
             elif args.which_kind == "uncertain":
-                env.random_ratio = case
+                env.random_ratio = (case - (max_case / 2)) * 2
                 print("uncertainty scale: ", case * 100, " percent of init property", file=result_txt)
                 print("uncertainty scale: ", case * 100, " percent of init property")
 
